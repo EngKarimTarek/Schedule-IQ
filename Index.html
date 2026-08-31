@@ -1,0 +1,1909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta name="author" content="Eng. Karim Tarek"/>
+<title>P6 Schedule Analysis &amp; Review Dashboard — Eng. Karim Tarek</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root{--navy:#0f2c47;--navy2:#163a5f;--navy3:#1e4a77;--slate:#5b6b7f;--slate-l:#8895a5;--line:#e2e8f0;--line2:#cbd5e1;
+--bg:#eef2f6;--panel:#fff;--panel2:#f8fafc;--ink:#1e2a38;--ink2:#42556b;--muted:#7b8a9b;--crit:#c0392b;--late:#c0392b;
+--late-bg:#fbe9e7;--ahead:#1e8e5a;--ahead-bg:#e7f6ee;--warn:#c77700;--warn-bg:#fdf3e2;--ns:#94a3b8;--ip:#2e78c7;--done:#1e8e5a;
+--accent:#b8862b;--shadow:0 1px 2px rgba(16,42,68,.06),0 4px 14px rgba(16,42,68,.06);--radius:9px;--fs:13px;}
+*{box-sizing:border-box} html,body{margin:0;padding:0}
+body{font-family:"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:var(--fs);color:var(--ink);background:var(--bg);line-height:1.45}
+h1,h2,h3,h4{margin:0;font-weight:600;color:var(--navy)} a{color:var(--navy3)} button{font-family:inherit;cursor:pointer}
+.mono{font-family:"SFMono-Regular",Consolas,Menlo,monospace} .hidden{display:none!important} .scroll{overflow:auto}
+header.app{background:linear-gradient(120deg,var(--navy),var(--navy2));color:#fff;padding:14px 22px;display:flex;align-items:center;gap:16px;box-shadow:var(--shadow);position:sticky;top:0;z-index:40}
+header.app .brand{display:flex;align-items:center;gap:12px}
+header.app .logo{width:38px;height:38px;border-radius:8px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:var(--navy)}
+header.app h1{color:#fff;font-size:16px} header.app .sub{color:#b9c9db;font-size:11.5px;margin-top:1px} header.app .spacer{flex:1}
+header.app .hbtn{background:rgba(255,255,255,.10);color:#fff;border:1px solid rgba(255,255,255,.22);padding:7px 13px;border-radius:7px;font-size:12.5px}
+header.app .hbtn:hover{background:rgba(255,255,255,.2)} header.app .hbtn.primary{background:var(--accent);border-color:var(--accent);color:var(--navy);font-weight:700}
+header.app .author-chip{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);padding:6px 12px;border-radius:20px;font-size:12px;color:#fff}
+header.app .author-chip .av{width:22px;height:22px;border-radius:50%;background:var(--accent);color:var(--navy);font-weight:800;font-size:10px;display:flex;align-items:center;justify-content:center}
+.wrap{max-width:1520px;margin:0 auto;padding:18px 22px 70px}
+.upload-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:8px}
+.drop{background:var(--panel);border:1.5px dashed var(--line2);border-radius:var(--radius);padding:18px;text-align:center}
+.drop.drag{border-color:var(--navy3);background:#f0f6fc} .drop.loaded{border-style:solid;text-align:left}
+.drop .slot-label{font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:8px}
+.drop .cloud{font-size:26px;color:var(--slate-l)} .drop .hint{color:var(--muted);font-size:12px;margin-top:4px}
+.drop .pick{margin-top:10px;background:var(--navy);color:#fff;border:0;padding:8px 16px;border-radius:7px;font-size:12.5px}
+.filechip{display:flex;align-items:center;gap:10px}
+.filechip .ic{width:34px;height:34px;border-radius:7px;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;flex-shrink:0}
+.filechip .fn{font-weight:600;word-break:break-all} .filechip .meta{color:var(--muted);font-size:11.5px}
+.filechip .rm{margin-left:auto;background:none;border:0;color:var(--muted);font-size:16px}
+.role-tag{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:2px 7px;border-radius:5px;margin-top:6px}
+.role-a{background:#e8eef5;color:var(--navy2)} .role-b{background:var(--warn-bg);color:var(--warn)}
+.parse-summary{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px;margin:10px 0 4px;display:flex;flex-wrap:wrap;gap:20px;align-items:center;box-shadow:var(--shadow)}
+.parse-summary .ps{display:flex;flex-direction:column}
+.parse-summary .ps .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:600}
+.parse-summary .ps .v{font-size:15px;font-weight:700;color:var(--navy)} .parse-summary .ok{color:var(--ahead)}
+.banner-err{background:var(--late-bg);border:1px solid #f0b7b0;color:#8f2c22;border-radius:8px;padding:12px 16px;margin:10px 0}
+.banner-info{background:#eaf2fb;border:1px solid #c5dbf3;color:var(--navy2);border-radius:8px;padding:10px 14px;margin:8px 0;font-size:12.5px}
+.banner-warn{background:var(--warn-bg);border:1px solid #edd3a0;color:#8a5a00;border-radius:8px;padding:11px 15px;margin:8px 0;font-size:12.5px}
+.tabs{display:flex;gap:2px;border-bottom:2px solid var(--line);margin:18px 0 16px;flex-wrap:wrap}
+.tab{padding:9px 14px;border:0;background:none;font-size:12.5px;font-weight:600;color:var(--slate);border-bottom:3px solid transparent;margin-bottom:-2px}
+.tab.active{color:var(--navy);border-bottom-color:var(--accent)} .tab:disabled{color:var(--line2);cursor:not-allowed} .tab.star{color:var(--navy)}
+.tab .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--warn);margin-left:6px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:18px}
+.panel>.ph{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.panel>.ph h3{font-size:14px} .panel>.ph .sub{color:var(--muted);font-size:11.5px}
+.panel>.ph .right{margin-left:auto;display:flex;gap:8px;align-items:center} .panel>.pb{padding:16px}
+.mini-btn{background:var(--panel2);border:1px solid var(--line2);color:var(--ink2);padding:5px 11px;border-radius:6px;font-size:11.5px}
+.mini-btn:hover{background:#eef2f7} .mini-btn.primary{background:var(--navy);border-color:var(--navy);color:#fff}
+.btn-lg{background:var(--navy);color:#fff;border:0;padding:12px 22px;border-radius:8px;font-size:14px;font-weight:700;box-shadow:var(--shadow)}
+.btn-lg:hover{background:var(--navy2)} .btn-lg:disabled{opacity:.6;cursor:default}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(205px,1fr));gap:14px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--navy3);border-radius:var(--radius);padding:13px 15px;box-shadow:var(--shadow)}
+.kpi.crit{border-left-color:var(--crit)} .kpi.good{border-left-color:var(--ahead)} .kpi.warn{border-left-color:var(--warn)}
+.kpi .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:700}
+.kpi .v{font-size:23px;font-weight:800;color:var(--navy);margin-top:3px;line-height:1.1} .kpi .v small{font-size:13px;color:var(--slate)}
+.kpi .sub{font-size:11.5px;color:var(--slate);margin-top:3px} .kpi .bar{height:6px;border-radius:3px;background:var(--line);margin-top:8px;overflow:hidden}
+.kpi .bar>span{display:block;height:100%;border-radius:3px}
+.status-split{display:flex;height:26px;border-radius:6px;overflow:hidden;border:1px solid var(--line);margin-top:6px}
+.status-split>span{display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700}
+.grade{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:60px;height:60px;border-radius:12px;color:#fff;font-weight:800}
+.grade .g{font-size:26px;line-height:1} .grade .s{font-size:10px;opacity:.9}
+.gA{background:var(--ahead)} .gB{background:#3f9e6b} .gC{background:var(--warn)} .gD{background:#d3701f} .gF{background:var(--crit)}
+.statbox{width:96px;height:96px;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;box-shadow:var(--shadow)}
+.statbox .sl{font-size:44px;font-weight:800;line-height:1} .statbox .sn{font-size:10px;text-transform:uppercase;letter-spacing:1px;opacity:.9}
+.s-good{background:var(--ahead)} .s-warn{background:var(--warn)} .s-bad{background:var(--crit)}
+table.grid{width:100%;border-collapse:collapse;font-size:12.5px}
+table.grid th{background:var(--panel2);text-align:left;padding:8px 10px;font-weight:600;color:var(--ink2);border-bottom:2px solid var(--line);position:sticky;top:0;white-space:nowrap;cursor:pointer;user-select:none}
+table.grid th.no-sort{cursor:default} table.grid th .arr{color:var(--slate-l);font-size:10px}
+table.grid td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top} table.grid tbody tr:hover{background:#f5f9fd}
+table.grid.sm{font-size:11.5px} table.grid.sm td,table.grid.sm th{padding:5px 8px}
+table.grid.det td{padding:5px 8px;border-bottom:1px solid #f1f5f9}
+.tbl-wrap{max-height:520px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+.chip{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:700;white-space:nowrap;margin:1px 0}
+.c-ns{background:#eef1f5;color:#5b6b7f} .c-ip{background:#e4effb;color:#1f5c9e} .c-done{background:var(--ahead-bg);color:var(--ahead)} .c-crit{background:var(--late-bg);color:var(--crit)}
+.rt{display:inline-block;padding:1px 7px;border-radius:5px;font-size:10.5px;font-weight:800;font-family:monospace}
+.rt-fs{background:var(--ahead-bg);color:var(--ahead)} .rt-other{background:#e4effb;color:#1f5c9e}
+.rt-sf{background:var(--late-bg);color:var(--crit);outline:1.5px solid var(--crit)}
+.pos{color:var(--late);font-weight:700} .neg{color:var(--ahead);font-weight:700} .tf-neg{color:var(--crit);font-weight:800}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.pager{display:flex;align-items:center;gap:10px;justify-content:flex-end;padding:8px 4px;color:var(--muted);font-size:12px}
+.pager button{background:var(--panel2);border:1px solid var(--line2);border-radius:6px;padding:4px 10px} .pager button:disabled{opacity:.4;cursor:default}
+.filterbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;align-items:center}
+.filterbar input[type=text],.filterbar select{padding:6px 10px;border:1px solid var(--line2);border-radius:6px;font-size:12.5px;font-family:inherit;background:#fff}
+.filterbar label{font-size:12px;color:var(--ink2);display:inline-flex;align-items:center;gap:5px}
+.dcma-row{display:grid;grid-template-columns:26px 1.4fr 1fr .9fr 74px;gap:10px;align-items:center;padding:11px 14px;border-bottom:1px solid var(--line)}
+.dcma-row:last-child{border-bottom:0}
+.dcma-row .n{width:24px;height:24px;border-radius:6px;background:var(--panel2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--slate);font-size:11px}
+.dcma-row .nm{font-weight:600} .dcma-row .dt{grid-column:2/5;color:var(--muted);font-size:11.5px;margin-top:2px}
+.dcma-row .val{font-weight:700;color:var(--navy)} .dcma-row .thr{color:var(--slate);font-size:11.5px}
+.verdict{text-align:center;font-weight:700;font-size:11px;padding:4px 0;border-radius:6px}
+.v-pass{background:var(--ahead-bg);color:var(--ahead)} .v-fail{background:var(--late-bg);color:var(--crit)} .v-info{background:#eef1f5;color:var(--slate)}
+.gantt-tools{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+#ganttHost{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff}
+.g-left-h{padding:8px 10px;border-right:1px solid var(--line);font-size:11px;color:var(--slate);font-weight:600;background:#f8fafc}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--ink2);align-items:center}
+.legend .sw{display:inline-block;width:14px;height:11px;border-radius:2px;margin-right:5px;vertical-align:middle}
+.drawer-mask{position:fixed;inset:0;background:rgba(16,42,68,.4);z-index:60;display:none} .drawer-mask.open{display:block}
+.drawer{position:fixed;top:0;right:0;height:100%;width:470px;max-width:92vw;background:#fff;z-index:61;box-shadow:-8px 0 30px rgba(16,42,68,.2);transform:translateX(100%);transition:.25s;overflow:auto}
+.drawer.open{transform:translateX(0)}
+.drawer .dh{position:sticky;top:0;background:var(--navy);color:#fff;padding:16px 20px;display:flex;align-items:center}
+.drawer .dh h3{color:#fff} .drawer .dh button{margin-left:auto;background:none;border:0;color:#fff;font-size:20px}
+.drawer .db{padding:18px 20px} .drawer h4{margin:16px 0 6px;color:var(--navy2);font-size:13px}
+.drawer p,.drawer li{font-size:12.5px;color:var(--ink2);line-height:1.55}
+.section-note{color:var(--muted);font-size:12px;margin:-6px 0 12px}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.callout{background:var(--panel2);border-left:4px solid var(--navy3);padding:12px 16px;border-radius:6px}
+.callout.bad{border-left-color:var(--crit);background:var(--late-bg)} .callout.good{border-left-color:var(--ahead);background:var(--ahead-bg)}
+.narrative{font-size:13px;line-height:1.6} .narrative ul{margin:8px 0 0;padding-left:20px} .narrative li{margin-bottom:7px} .narrative b{color:var(--navy)}
+@media(max-width:1050px){.two-col{grid-template-columns:1fr}.upload-grid{grid-template-columns:1fr}}
+.empty-state{padding:60px 20px;text-align:center;color:var(--muted)} .empty-state .big{font-size:40px;margin-bottom:8px;color:var(--line2)}
+.cost-note{display:flex;flex-wrap:wrap;gap:14px;align-items:center;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:9px 14px;margin-top:10px;font-size:12px}
+h4.lg{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:0 0 6px}
+a.lnk{text-decoration:none;border-bottom:1px dotted var(--navy3)} a.lnk:hover{color:var(--crit);border-bottom-color:var(--crit)}
+/* activity path */
+.pth{display:flex;flex-direction:column;gap:3px}
+.pth-row{display:grid;grid-template-columns:44px 6px 1fr 190px 60px 90px 92px;gap:10px;align-items:center;padding:7px 10px;border:1px solid var(--line);border-radius:7px;background:#fff}
+.pth-row.pth-cur{background:#fff8e7;border-color:var(--accent);box-shadow:0 0 0 2px rgba(184,134,43,.18)}
+.pth-pos{font-size:10.5px;font-weight:800;color:var(--muted);text-align:center}
+.pth-bar{width:6px;height:30px;border-radius:3px;background:var(--navy3)} .pth-bar.crit{background:var(--crit)}
+.pth-code{font-size:12px} .pth-name{font-size:11.5px;color:var(--slate);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pth-dates{font-size:11.5px;color:var(--ink2);font-variant-numeric:tabular-nums}
+.pth-num{font-size:11.5px;text-align:right;font-variant-numeric:tabular-nums;color:var(--ink2)}
+.pth-link{text-align:right} .pth-link .lag{font-size:11px;color:var(--warn);font-weight:700}
+/* report form */
+.frm{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.fl{display:flex;flex-direction:column;gap:4px} .fl.wide{grid-column:span 2}
+.fl span{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:600}
+.fl input{padding:7px 10px;border:1px solid var(--line2);border-radius:6px;font-size:13px;font-family:inherit}
+.rp-sec{margin-bottom:16px} .rp-h{font-weight:700;color:var(--navy);background:#dce3ea;padding:7px 12px;border-radius:6px;font-size:13px}
+.rp-ul{margin:8px 0 0;padding-left:22px} .rp-ul li{font-size:12.5px;margin-bottom:6px;line-height:1.55}
+.rp-ul li.sub{list-style:circle;color:var(--ink2)}
+.author-badge{position:fixed;right:16px;bottom:16px;z-index:55;background:linear-gradient(120deg,var(--navy),var(--navy2));color:#fff;border-radius:24px;padding:8px 15px 8px 9px;display:flex;align-items:center;gap:9px;box-shadow:0 6px 20px rgba(16,42,68,.28);font-size:12px}
+.author-badge .av{width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--navy);font-weight:800;font-size:11px;display:flex;align-items:center;justify-content:center}
+.author-badge .lbl{line-height:1.15} .author-badge .lbl small{display:block;color:#b9c9db;font-size:9.5px;text-transform:uppercase;letter-spacing:.5px}
+.exec-stage{width:100%;display:flex;justify-content:center;overflow:hidden}
+.exec-page{width:1400px;height:990px;flex:0 0 auto;background:#f4f6f9;transform-origin:top center;border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow);padding:16px;display:flex;flex-direction:column;gap:12px}
+.exh{display:flex;align-items:center;background:linear-gradient(120deg,var(--navy),var(--navy2));color:#fff;border-radius:9px;padding:12px 18px}
+.exh-left{display:flex;align-items:center;gap:13px}
+.exh-logo{width:40px;height:40px;border-radius:9px;background:var(--accent);color:var(--navy);font-weight:800;display:flex;align-items:center;justify-content:center;font-size:16px}
+.exh-title{font-size:19px;font-weight:700;color:#fff} .exh-sub{font-size:12px;color:#c3d2e2;margin-top:2px}
+.exh-vs{background:rgba(255,255,255,.16);padding:1px 8px;border-radius:10px;font-weight:600} .exh-right{margin-left:auto;display:flex;gap:8px}
+.exec-kpis{display:grid;grid-template-columns:repeat(7,1fr);gap:10px}
+.exk{background:#fff;border:1px solid var(--line);border-top:3px solid var(--slate-l);border-radius:8px;padding:10px 12px;min-height:78px}
+.exk-l{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+.exk-v{font-size:24px;font-weight:800;color:var(--navy);line-height:1.15;margin-top:2px} .exk-v small{font-size:13px;color:var(--slate)}
+.exk-s{font-size:10.5px;color:var(--slate)} .exk-delta{font-size:10.5px;font-weight:700;margin-top:3px;color:var(--slate)}
+.exk-delta.d-good{color:var(--ahead)} .exk-delta.d-bad{color:var(--crit)}
+.exk.h-good{border-top-color:var(--ahead)} .exk.h-good .exk-v{color:var(--ahead)}
+.exk.h-warn{border-top-color:var(--warn)} .exk.h-warn .exk-v{color:var(--warn)}
+.exk.h-bad{border-top-color:var(--crit)} .exk.h-bad .exk-v{color:var(--crit)}
+.exec-grid{flex:1;display:grid;grid-template-columns:1.35fr 1fr 1fr;grid-template-rows:1fr 1fr;gap:12px;min-height:0}
+.exp{background:#fff;border:1px solid var(--line);border-radius:8px;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.exp-h{display:flex;align-items:baseline;gap:8px;padding:8px 12px 6px;border-bottom:1px solid var(--line)}
+.exp-t{font-size:12.5px;font-weight:700;color:var(--navy)} .exp-s{font-size:10px;color:var(--muted);text-transform:uppercase}
+.exp-b{flex:1;min-height:0;padding:8px 12px;position:relative;overflow:hidden} .exp-b canvas{width:100%!important;height:100%!important}
+.exp-empty{color:var(--muted);font-size:12px;padding:16px;text-align:center}
+.p-scurve{grid-column:1;grid-row:1/span 2} .p-miles{grid-column:2/span 2;grid-row:1} .p-crit{grid-column:2;grid-row:2} .p-wbs{grid-column:3;grid-row:2}
+.mile-list{display:flex;flex-direction:column;gap:2px;height:100%;overflow:auto}
+.mile-row{display:grid;grid-template-columns:12px 1fr 74px 74px 46px 66px;gap:8px;align-items:center;padding:4px 2px;border-bottom:1px solid #f1f5f9;font-size:11.5px}
+.mile-dot{width:9px;height:9px;border-radius:50%}
+.mile-nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.mile-base,.mile-fore{color:var(--slate);font-variant-numeric:tabular-nums;font-size:11px}
+.mile-var{text-align:right;font-weight:700} .mile-st{font-weight:700;font-size:10.5px;text-align:right}
+.mile-row .pos{color:var(--crit)} .mile-row .neg{color:var(--ahead)}
+.mini-tbl{width:100%;border-collapse:collapse;font-size:11px}
+.mini-tbl th{position:sticky;top:0;background:#f8fafc;text-align:left;padding:4px 6px;color:var(--slate);font-weight:600;border-bottom:1px solid var(--line)}
+.mini-tbl td{padding:4px 6px;border-bottom:1px solid #f1f5f9;white-space:nowrap} .mini-tbl .cp-nm{max-width:150px;overflow:hidden;text-overflow:ellipsis}
+.wbs-bars{display:flex;flex-direction:column;gap:8px;justify-content:center;height:100%}
+.wbs-row{display:grid;grid-template-columns:96px 1fr 38px;gap:8px;align-items:center;font-size:11px}
+.wbs-nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.wbs-track{height:11px;background:var(--line);border-radius:6px;overflow:hidden} .wbs-fill{display:block;height:100%;border-radius:6px}
+.wbs-pct{text-align:right;font-weight:700;color:var(--navy)}
+.exec-foot{display:flex;justify-content:space-between;font-size:10.5px;color:var(--slate);padding:2px 4px 0}
+body.capturing .no-capture{visibility:hidden!important}
+body.printing header.app,body.printing .tabs,body.printing .upload-grid,body.printing .parse-summary,body.printing .no-print,body.printing #helpDrawer,body.printing .drawer-mask{display:none!important}
+@media print{header.app,.tabs,.upload-grid,.parse-summary,.no-print,.author-badge{display:none!important}body{background:#fff}.panel{box-shadow:none;border-color:#ccc;break-inside:avoid}.wrap{max-width:100%;padding:0}}
+</style>
+</head>
+<body>
+<header class="app">
+  <div class="brand"><div class="logo">P6</div>
+    <div><h1>Primavera P6 — Schedule Analysis &amp; Review Dashboard</h1>
+    <div class="sub">Baseline &amp; update review · Activity path tracing · Logic audit · DCMA-14 · Comparison · Word comments sheet</div></div></div>
+  <div class="spacer"></div>
+  <div class="author-chip"><span class="av">KT</span><span>Author&nbsp;<b>Eng. Karim Tarek</b></span></div>
+  <button class="hbtn primary no-print" id="btnReport">📄 Generate Report</button>
+  <button class="hbtn no-print" id="btnPrint">🖨 Print</button>
+  <button class="hbtn no-print" id="btnHelp">❓ Help</button>
+</header>
+<div class="wrap">
+  <div class="upload-grid">
+    <div class="drop" id="dropA" data-slot="A"><div class="slot-label">Schedule A — Baseline / Previous update</div>
+      <div class="cloud">📂</div><div><b>Drag &amp; drop</b> an <span class="mono">.XER</span> file here</div>
+      <div class="hint">or</div><button class="pick" data-pick="A">Choose XER file</button></div>
+    <div class="drop" id="dropB" data-slot="B"><div class="slot-label">Schedule B — Current update <span style="font-weight:400;color:var(--muted)">(optional → enables comparison)</span></div>
+      <div class="cloud">📂</div><div><b>Drag &amp; drop</b> a second <span class="mono">.XER</span> to compare</div>
+      <div class="hint">or</div><button class="pick" data-pick="B">Choose XER file</button></div>
+  </div>
+  <input type="file" id="fileInput" accept=".xer,.XER" class="hidden"/>
+  <div id="errBox"></div>
+  <div class="parse-summary hidden" id="parseSummary"></div>
+  <div class="tabs" id="tabs">
+    <button class="tab star active" data-tab="exec">★ Executive Summary</button>
+    <button class="tab" data-tab="overview">Overview</button>
+    <button class="tab" data-tab="health">Schedule Health</button>
+    <button class="tab" data-tab="logic">Logic &amp; Relationships</button>
+    <button class="tab" data-tab="explorer">Activity Explorer</button>
+    <button class="tab" data-tab="scurve">S-Curves</button>
+    <button class="tab" data-tab="gantt">Gantt</button>
+    <button class="tab" data-tab="lookahead">Look-Ahead</button>
+    <button class="tab" data-tab="critical">Critical Path</button>
+    <button class="tab" data-tab="comparison" id="tabComparison" disabled>Comparison</button>
+    <button class="tab" data-tab="report">📄 Report</button>
+  </div>
+  <div id="views">
+    <div class="empty-state" id="welcome"><div class="big">📊</div>
+      <h2 style="color:var(--slate)">Upload a Primavera P6 <span class="mono">.XER</span> file to begin</h2>
+      <p>Everything runs locally in your browser — no data ever leaves your machine.<br/>
+      Load one file for a full baseline review, or two files to compare updates.<br/>
+      <span style="color:var(--muted)">Prepared by <b>Eng. Karim Tarek</b></span></p></div>
+    <section class="view hidden" id="view-exec"></section>
+    <section class="view hidden" id="view-overview"></section>
+    <section class="view hidden" id="view-health"></section>
+    <section class="view hidden" id="view-logic"></section>
+    <section class="view hidden" id="view-explorer"></section>
+    <section class="view hidden" id="view-scurve"></section>
+    <section class="view hidden" id="view-gantt"></section>
+    <section class="view hidden" id="view-lookahead"></section>
+    <section class="view hidden" id="view-critical"></section>
+    <section class="view hidden" id="view-comparison"></section>
+    <section class="view hidden" id="view-report"></section>
+  </div>
+</div>
+<div class="author-badge"><span class="av">KT</span><span class="lbl"><small>Prepared by</small><b>Eng. Karim Tarek</b></span></div>
+<div class="drawer-mask" id="drawerMask"></div>
+<aside class="drawer" id="helpDrawer">
+  <div class="dh"><h3>How to read this dashboard</h3><button id="btnHelpClose">×</button></div>
+  <div class="db" id="helpBody"></div>
+</aside>
+<script>
+// ============================================================================
+//  P6 XER ENGINE — parsing + core analytics
+// ============================================================================
+const HOURS_FALLBACK = 8;
+
+function parseXER(text){
+  const lines=text.split(/\r\n|\r|\n/); const out={header:null,tables:{}};
+  let curTable=null,curFields=null;
+  for(let i=0;i<lines.length;i++){
+    const line=lines[i]; if(line.length===0) continue;
+    const cells=line.split('\t'); const tag=cells[0];
+    if(tag==='ERMHDR'){ out.header=cells.slice(1); continue; }
+    if(tag==='%T'){ curTable=cells[1]; curFields=null; out.tables[curTable]=out.tables[curTable]||[]; continue; }
+    if(tag==='%F'){ curFields=cells.slice(1); continue; }
+    if(tag==='%R'){ if(!curTable||!curFields) continue; const vals=cells.slice(1); const rec={};
+      for(let c=0;c<curFields.length;c++) rec[curFields[c]]=(vals[c]!==undefined?vals[c]:'');
+      out.tables[curTable].push(rec); continue; }
+    if(tag==='%E') break;
+  }
+  return out;
+}
+function parseDate(s){ if(!s||s.trim()==='') return null;
+  const m=s.match(/(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2}))?/); if(!m) return null;
+  return new Date(+m[1],+m[2]-1,+m[3],m[4]?+m[4]:0,m[5]?+m[5]:0); }
+function num(v){ const n=parseFloat(v); return isNaN(n)?0:n; }
+const DAY_MS=86400000;
+function calDaysBetween(a,b){ if(!a||!b) return null; return Math.round((b-a)/DAY_MS); }
+
+// ---- CURRENCY -------------------------------------------------------------
+const CURRENCY_HINTS=[
+  {code:'EGP',sym:'E£',re:/\b(EGP|LE|L\.E\.?|EGYPTIAN)\b/i},{code:'USD',sym:'$',re:/\b(USD|US\$|DOLLAR)\b/i},
+  {code:'EUR',sym:'€',re:/\b(EUR|EURO)\b/i},{code:'GBP',sym:'£',re:/\b(GBP|STERLING)\b/i},
+  {code:'SAR',sym:'SR',re:/\b(SAR|RIYAL)\b/i},{code:'AED',sym:'AED',re:/\b(AED|DIRHAM)\b/i}];
+function sniffCurrency(t){ if(!t) return null; for(const h of CURRENCY_HINTS) if(h.re.test(t)) return h; return null; }
+function buildCurrency(parsed){
+  const T=parsed.tables;
+  const list=(T.CURRTYPE||[]).map(c=>({id:c.curr_id,code:(c.curr_short_name||'').trim(),symbol:(c.curr_symbol||'').trim(),
+    name:(c.curr_type||'').trim(),rate:num(c.base_exch_rate)||1})).filter(c=>c.code||c.symbol);
+  let base=list.find(c=>Math.abs(c.rate-1)<1e-9)||list[0]||null;
+  const hdr=parsed.header||[]; let hdrCode=null;
+  for(let i=hdr.length-1;i>=0;i--){ const v=(hdr[i]||'').trim(); if(/^[A-Z]{3}$/.test(v)){ hdrCode=v; break; } }
+  if(!base&&hdrCode) base={id:null,code:hdrCode,symbol:'',name:hdrCode,rate:1};
+  if(base&&!base.code&&hdrCode) base.code=hdrCode;
+  const sym=c=>{ if(!c) return ''; if(c.symbol) return c.symbol; const h=CURRENCY_HINTS.find(x=>x.code===c.code); return h?h.sym:(c.code||''); };
+  return { base,list,headerCode:hdrCode, baseCode:base?(base.code||hdrCode||''):(hdrCode||''), baseSymbol:sym(base), definedCount:list.length };
+}
+
+// ---- MODEL ----------------------------------------------------------------
+function buildModel(parsed,fileName){
+  const T=parsed.tables; const proj=(T.PROJECT&&T.PROJECT[0])||{};
+  const calById={}; (T.CALENDAR||[]).forEach(c=>{ calById[c.clndr_id]={ id:c.clndr_id, name:c.clndr_name,
+    hrs:num(c.day_hr_cnt)||HOURS_FALLBACK, isDefault:c.default_flag==='Y', data:c.clndr_data||'' }; });
+  const projHrs=(calById[proj.clndr_id]&&calById[proj.clndr_id].hrs)||HOURS_FALLBACK;
+  const hrsFor=id=>(calById[id]&&calById[id].hrs)||projHrs||HOURS_FALLBACK;
+  const dataDate=parseDate(proj.last_recalc_date)||parseDate(proj.plan_end_date)||null;
+  const currency=buildCurrency(parsed);
+
+  const wbsById={}; (T.PROJWBS||[]).forEach(w=>{ wbsById[w.wbs_id]={id:w.wbs_id,parent:w.parent_wbs_id,name:w.wbs_name,
+    code:w.wbs_short_name,isProjNode:w.proj_node_flag==='Y'}; });
+  function wbsPath(id){ const p=[]; let g=wbsById[id],n=0; while(g&&n++<50){ p.unshift(g.name); g=g.parent?wbsById[g.parent]:null; } return p.join(' / '); }
+
+  const rsrcById={}; (T.RSRC||[]).forEach(r=>{ const lbl=(r.rsrc_name||'')+' '+(r.rsrc_short_name||''); const h=sniffCurrency(lbl);
+    rsrcById[r.rsrc_id]={id:r.rsrc_id,name:r.rsrc_name,short:r.rsrc_short_name,curr_id:r.curr_id||'',currencyHint:h?h.code:null}; });
+
+  // cost aggregation (4 channels)
+  const costByTask={};
+  function bucket(t){ return costByTask[t]||(costByTask[t]={target:0,actual:0,remain:0,atComplete:0,tqty:0,aqty:0,rqty:0,count:0,byKey:{},
+    source:{rsrcTarget:false,rsrcQty:false,rsrcAR:false,expense:false}}); }
+  function addKey(o,k,a){ if(!a) return; o.byKey[k]=(o.byKey[k]||0)+a; }
+  (T.TASKRSRC||[]).forEach(a=>{ if(!a.task_id) return; const o=bucket(a.task_id);
+    const tC=num(a.target_cost),aC=num(a.act_reg_cost)+num(a.act_ot_cost),rC=num(a.remain_cost);
+    const cpq=num(a.cost_per_qty),tQ=num(a.target_qty);
+    let b=tC; if(b===0&&cpq>0&&tQ>0){ b=cpq*tQ; o.source.rsrcQty=true; }
+    else if(b===0&&(aC>0||rC>0)){ b=aC+rC; o.source.rsrcAR=true; } else if(b>0) o.source.rsrcTarget=true;
+    const eac=(aC+rC)>0?(aC+rC):b;
+    o.target+=b; o.actual+=aC; o.remain+=(rC>0?rC:Math.max(0,b-aC)); o.atComplete+=eac;
+    o.tqty+=tQ; o.aqty+=num(a.act_reg_qty)+num(a.act_ot_qty); o.rqty+=num(a.remain_qty); o.count++;
+    addKey(o,'R:'+(a.rsrc_id||'none'),b>0?b:eac); });
+  (T.PROJCOST||[]).forEach(e=>{ if(!e.task_id) return; const o=bucket(e.task_id);
+    const aC=num(e.act_cost),rC=num(e.remain_cost); let b=num(e.target_cost); if(b===0) b=aC+rC;
+    o.target+=b; o.actual+=aC; o.remain+=(rC>0?rC:Math.max(0,b-aC)); o.atComplete+=(aC+rC)>0?(aC+rC):b;
+    o.source.expense=true; o.count++; addKey(o,'EXPENSE',b); });
+
+  const actvCodeById={}; (T.ACTVCODE||[]).forEach(c=>{ actvCodeById[c.actv_code_id]={short:c.short_name,name:c.actv_code_name,typeId:c.actv_code_type_id}; });
+  const actvTypeById={}; (T.ACTVTYPE||[]).forEach(t=>{ actvTypeById[t.actv_code_type_id]=t.actv_code_type; });
+  const codesByTask={}; (T.TASKACTV||[]).forEach(a=>{ const c=actvCodeById[a.actv_code_id]; if(!c) return;
+    (codesByTask[a.task_id]=codesByTask[a.task_id]||[]).push({type:actvTypeById[c.typeId]||c.typeId,value:c.short,desc:c.name}); });
+
+  const tasks=[],taskById={},taskByCode={};
+  (T.TASK||[]).forEach(t=>{
+    const hrs=hrsFor(t.clndr_id);
+    const r={ id:t.task_id, wbs_id:t.wbs_id, clndr_id:t.clndr_id, code:t.task_code, name:t.task_name, type:t.task_type,
+      status:t.status_code, phys_pct:num(t.phys_complete_pct), duration_type:t.duration_type,
+      target_start:parseDate(t.target_start_date), target_end:parseDate(t.target_end_date),
+      act_start:parseDate(t.act_start_date), act_end:parseDate(t.act_end_date),
+      early_start:parseDate(t.early_start_date), early_end:parseDate(t.early_end_date),
+      late_start:parseDate(t.late_start_date), late_end:parseDate(t.late_end_date),
+      target_drtn_hr:num(t.target_drtn_hr_cnt), remain_drtn_hr:num(t.remain_drtn_hr_cnt),
+      tf_hr:num(t.total_float_hr_cnt), ff_hr:num(t.free_float_hr_cnt), driving:t.driving_path_flag==='Y',
+      cstr_type:t.cstr_type||'', cstr_date:parseDate(t.cstr_date), cstr_type2:t.cstr_type2||'', cstr_date2:parseDate(t.cstr_date2),
+      clndr_hrs:hrs, cost:costByTask[t.task_id]||null, codes:codesByTask[t.task_id]||[] };
+    r.tf_days=r.tf_hr/hrs; r.ff_days=r.ff_hr/hrs; r.dur_days=r.target_drtn_hr/hrs; r.rem_days=r.remain_drtn_hr/hrs;
+    r.isMilestone=(r.type==='TT_Mile'||r.type==='TT_FinMile'); r.isLOE=(r.type==='TT_LOE'||r.type==='TT_WBS');
+    r.bestStart=r.act_start||r.early_start||r.target_start; r.bestFinish=r.act_end||r.early_end||r.target_end;
+    if(r.phys_pct>0) r.pct=r.phys_pct; else if(r.status==='TK_Complete') r.pct=100;
+    else if(r.target_drtn_hr>0) r.pct=Math.max(0,Math.min(100,(1-r.remain_drtn_hr/r.target_drtn_hr)*100));
+    else r.pct=r.status==='TK_Complete'?100:0;
+    tasks.push(r); taskById[r.id]=r; taskByCode[r.code]=r;
+  });
+
+  const rels=[];
+  (T.TASKPRED||[]).forEach(p=>{ const s=taskById[p.task_id],pr=taskById[p.pred_task_id]; const hrs=(s&&s.clndr_hrs)||projHrs;
+    rels.push({ id:p.task_pred_id, succ_id:p.task_id, pred_id:p.pred_task_id, type:p.pred_type,
+      lag_hr:num(p.lag_hr_cnt), lag_days:num(p.lag_hr_cnt)/hrs,
+      pred_code:pr?pr.code:p.pred_task_id, succ_code:s?s.code:p.task_id,
+      pred_name:pr?pr.name:'', succ_name:s?s.name:'' }); });
+  tasks.forEach(t=>{ t.preds=[]; t.succs=[]; });
+  rels.forEach(r=>{ if(taskById[r.succ_id]) taskById[r.succ_id].preds.push(r); if(taskById[r.pred_id]) taskById[r.pred_id].succs.push(r); });
+
+  let cB=0,cA=0,cR=0,cT=0; const chan={rsrcTarget:0,rsrcQty:0,rsrcAR:0,expense:0}; const byKeyTot={};
+  tasks.forEach(t=>{ if(t.cost&&(t.cost.target>0||t.cost.atComplete>0)){ cB+=t.cost.target; cA+=t.cost.actual; cR+=t.cost.remain; cT++;
+    Object.keys(chan).forEach(k=>{ if(t.cost.source[k]) chan[k]++; });
+    Object.keys(t.cost.byKey).forEach(k=>{ byKeyTot[k]=(byKeyTot[k]||0)+t.cost.byKey[k]; }); } });
+  const hasCost=cB>0||tasks.some(t=>t.cost&&t.cost.atComplete>0);
+  const costSources=Object.keys(byKeyTot).map(key=>{ let label,hint=null;
+    if(key==='EXPENSE') label='Activity expenses (PROJCOST)';
+    else { const rid=key.slice(2); const r=rsrcById[rid]; label=r?(r.name||r.short||('Resource '+rid)):('Resource '+rid); hint=r?r.currencyHint:null; }
+    return {key,label,amount:byKeyTot[key],currencyHint:hint}; }).sort((a,b)=>b.amount-a.amount);
+  const hinted=[...new Set(costSources.map(s=>s.currencyHint).filter(Boolean))];
+
+  return { fileName, projName:proj.proj_short_name||proj.proj_id||'Unknown', projId:proj.proj_id,
+    dataDate, planStart:parseDate(proj.plan_start_date), planEnd:parseDate(proj.plan_end_date),
+    scdEndDate:parseDate(proj.scd_end_date), projHrs, tasks, taskById, taskByCode, rels, wbsById, wbsPath,
+    rsrcById, calById, hasCost, currency,
+    costTotals:{budget:cB,actual:cA,remain:cR,tasks:cT,channels:chan}, costSources,
+    multiCurrencySuspect:hinted.length>1, hintedCurrencies:hinted,
+    counts:{activities:tasks.length,rels:rels.length,wbs:Object.keys(wbsById).length,
+      calendars:Object.keys(calById).length,resources:Object.keys(rsrcById).length},
+    tables:parsed.tables };
+}
+
+function taskCost(t,fx){ if(!t.cost) return 0;
+  if(!fx||!fx.on) return t.cost.target>0?t.cost.target:t.cost.atComplete;
+  const ks=Object.keys(t.cost.byKey); if(!ks.length) return t.cost.target>0?t.cost.target:t.cost.atComplete;
+  let s=0; ks.forEach(k=>{ const r=(fx.rates&&fx.rates[k]!=null)?fx.rates[k]:1; s+=t.cost.byKey[k]*r; }); return s; }
+function projectCostFx(m,fx){ let s=0; m.tasks.filter(t=>!t.isLOE).forEach(t=>s+=taskCost(t,fx)); return s; }
+
+function summarize(m){
+  const real=m.tasks.filter(t=>!t.isLOE);
+  const ns=real.filter(t=>t.status==='TK_NotStart').length, ip=real.filter(t=>t.status==='TK_Active').length, cp=real.filter(t=>t.status==='TK_Complete').length;
+  let tot=0,done=0,pS=0,pC=0;
+  real.forEach(t=>{ tot+=t.target_drtn_hr; done+=t.target_drtn_hr*(t.pct/100); if(t.phys_pct>0||t.status!=='TK_NotStart'){ pS+=t.phys_pct; pC++; } });
+  let fc=null; real.forEach(t=>{ const f=t.bestFinish; if(f&&(!fc||f>fc)) fc=f; });
+  return { total:real.length, notStarted:ns, inProgress:ip, complete:cp,
+    pctNotStarted:real.length?ns/real.length*100:0, pctInProgress:real.length?ip/real.length*100:0, pctComplete:real.length?cp/real.length*100:0,
+    pctDurWeighted:tot>0?done/tot*100:0, physAvg:pC?pS/pC:null, dataDate:m.dataDate, forecastFinish:fc,
+    mustFinish:m.planEnd, finishVarianceDays:(fc&&m.planEnd)?calDaysBetween(m.planEnd,fc):null };
+}
+function criticalActivities(m,th){ return m.tasks.filter(t=>!t.isLOE&&t.tf_days<=th+1e-6); }
+function tracePath(m){
+  const real=m.tasks.filter(t=>!t.isLOE);
+  let fin=real.filter(t=>t.type==='TT_FinMile').sort((a,b)=>(b.bestFinish||0)-(a.bestFinish||0))[0];
+  if(!fin) fin=real.filter(t=>t.tf_days<=0.0001).sort((a,b)=>(b.bestFinish||0)-(a.bestFinish||0))[0];
+  if(!fin) fin=real.slice().sort((a,b)=>(b.bestFinish||0)-(a.bestFinish||0))[0];
+  if(!fin) return [];
+  const path=[],seen=new Set(); let cur=fin,g=0;
+  while(cur&&g++<5000){ if(seen.has(cur.id)) break; seen.add(cur.id); path.unshift(cur);
+    let best=null,bs=-Infinity;
+    cur.preds.forEach(r=>{ const p=m.taskById[r.pred_id]; if(!p) return; let s=0;
+      if(p.driving) s+=1000; if(p.tf_days<=0.0001) s+=500; s+=(p.bestFinish?p.bestFinish.getTime()/1e10:0);
+      if(s>bs){ bs=s; best=p; } });
+    cur=best; }
+  return path;
+}
+function buildSCurve(m,basis,gran,fx){
+  const real=m.tasks.filter(t=>!t.isLOE&&t.bestStart&&t.bestFinish&&(basis!=='cost'||taskCost(t,fx)>0));
+  if(!real.length) return null;
+  const w=t=>basis==='cost'?taskCost(t,fx):1;
+  let minD=null,maxD=null;
+  real.forEach(t=>{ const s=t.target_start||t.bestStart,e=t.target_end||t.bestFinish;
+    if(s&&(!minD||s<minD))minD=s; if(e&&(!maxD||e>maxD))maxD=e;
+    if(t.bestStart<minD)minD=t.bestStart; if(t.bestFinish>maxD)maxD=t.bestFinish; });
+  if(!minD||!maxD) return null;
+  const buckets=[]; let cur=new Date(minD.getFullYear(),minD.getMonth(),gran==='week'?minD.getDate():1);
+  while(cur<=maxD){ buckets.push(new Date(cur)); if(gran==='week') cur.setDate(cur.getDate()+7); else cur.setMonth(cur.getMonth()+1); }
+  buckets.push(new Date(maxD.getTime()+DAY_MS));
+  function cum(gs,ge,gv,upTo){ return buckets.map(bd=>{ let s=0;
+    real.forEach(t=>{ const st=gs(t),en=ge(t),v=gv(t); if(!st||!en||v===0) return; if(upTo&&st>upTo) return;
+      const span=Math.max(1,(en-st)); let f; if(bd<=st)f=0; else if(bd>=en)f=1; else f=(bd-st)/span;
+      if(upTo) f=Math.min(f,t.pct/100); s+=v*f; }); return s; }); }
+  const dd=m.dataDate;
+  const planned=cum(t=>t.target_start||t.bestStart,t=>t.target_end||t.bestFinish,w,null);
+  const actual=cum(t=>t.act_start||t.target_start||t.bestStart,t=>t.act_end||t.early_end||t.target_end||t.bestFinish,w,dd).map((v,i)=>buckets[i]<=(dd||maxD)?v:null);
+  const forecast=cum(t=>t.bestStart,t=>t.bestFinish,w,null);
+  return { buckets,planned,actual,forecast,basis,gran,dataDate:dd, total:real.reduce((s,t)=>s+w(t),0), nTasks:real.length };
+}
+function execMetrics(m,nearDays,fx){
+  nearDays=(nearDays==null)?5:nearDays; const dd=m.dataDate; const real=m.tasks.filter(t=>!t.isLOE); const s=summarize(m);
+  const useCost=m.hasCost&&real.some(t=>taskCost(t,fx)>0); const w=t=>useCost?taskCost(t,fx):t.target_drtn_hr;
+  let PV=0,EV=0;
+  real.forEach(t=>{ const v=w(t); if(!v) return; EV+=v*(t.pct/100); let pf=0;
+    if(dd&&t.target_start&&t.target_end){ if(dd<=t.target_start)pf=0; else if(dd>=t.target_end)pf=1; else pf=(dd-t.target_start)/(t.target_end-t.target_start); }
+    else if(dd&&t.target_end&&t.target_end<=dd)pf=1; PV+=v*pf; });
+  const spi=PV>0?EV/PV:null; const behind=new Set();
+  real.forEach(t=>{ if(!dd) return;
+    if(t.target_start&&t.target_start<dd&&t.status==='TK_NotStart') behind.add(t.id);
+    if(t.target_end&&t.target_end<dd&&t.status!=='TK_Complete') behind.add(t.id); });
+  const inc=real.filter(t=>t.status!=='TK_Complete');
+  const miles=real.filter(t=>t.isMilestone).map(t=>{ const b=t.target_end||t.target_start, f=t.act_end||t.early_end||t.bestFinish||t.target_end;
+    const v=calDaysBetween(b,f); let st;
+    if(t.status==='TK_Complete') st='achieved'; else if(dd&&b&&b<dd&&t.status!=='TK_Complete') st='missed';
+    else if(t.tf_days<=0.0001||(v!=null&&v>0)) st='at-risk'; else st='on-track';
+    return {code:t.code,name:t.name,baseline:b,forecast:f,variance:v,status:st,tf:t.tf_days}; }).sort((a,b)=>(a.forecast||0)-(b.forecast||0));
+  return { spi, spiBasis:useCost?'cost':'duration', PV, EV, behind:behind.size,
+    daysRemaining:(dd&&s.forecastFinish)?Math.max(0,calDaysBetween(dd,s.forecastFinish)):null,
+    floatBuckets:{critical:inc.filter(t=>t.tf_days<=0.0001).length,near:inc.filter(t=>t.tf_days>0.0001&&t.tf_days<=nearDays+1e-6).length,healthy:inc.filter(t=>t.tf_days>nearDays+1e-6).length},
+    milestones:miles, summary:s };
+}
+function wbsRollup(m){
+  const pn=Object.values(m.wbsById).find(w=>w.isProjNode);
+  function topOf(w){ let g=m.wbsById[w],n=0; while(g&&g.parent&&m.wbsById[g.parent]&&!m.wbsById[g.parent].isProjNode&&n++<50) g=m.wbsById[g.parent]; return g?g.id:w; }
+  const agg={};
+  m.tasks.filter(t=>!t.isLOE).forEach(t=>{ const tp=topOf(t.wbs_id); (agg[tp]=agg[tp]||{dur:0,done:0,n:0});
+    agg[tp].dur+=t.target_drtn_hr; agg[tp].done+=t.target_drtn_hr*(t.pct/100); agg[tp].n++; });
+  const tops=pn?Object.values(m.wbsById).filter(w=>w.parent==pn.id):Object.values(m.wbsById).filter(w=>!w.isProjNode);
+  const list=[]; (tops.length?tops:Object.values(m.wbsById).filter(w=>!w.isProjNode)).forEach(w=>{ const a=agg[w.id]; if(!a) return;
+    list.push({id:w.id,name:w.name,pct:a.dur?a.done/a.dur*100:0,n:a.n}); });
+  return list.sort((a,b)=>a.pct-b.pct);
+}
+function dcma14(m,opts){
+  opts=opts||{}; const HF=44,HD=44;
+  const tasks=m.tasks.filter(t=>!t.isLOE); const inc=tasks.filter(t=>t.status!=='TK_Complete');
+  const notMile=tasks.filter(t=>!t.isMilestone); const N=tasks.length||1;
+  const oe=openEnds(m);
+  const logicCount=oe.any.length; const logicPct=inc.length?logicCount/inc.length*100:0;
+  const ra=relationshipAnalysis(m);
+  const hardTypes=['CS_MSO','CS_MSOA','CS_MEOA','CS_MEO','CS_MANDSTART','CS_MANDFIN'];
+  const hard=tasks.filter(t=>hardTypes.includes(t.cstr_type));
+  const highFloat=inc.filter(t=>t.tf_days>HF); const hfPct=inc.length?highFloat.length/inc.length*100:0;
+  const negFloat=inc.filter(t=>t.tf_days<0);
+  const highDur=inc.filter(t=>!t.isMilestone&&t.dur_days>HD); const hdPct=inc.length?highDur.length/inc.length*100:0;
+  const dd=m.dataDate;
+  const invalid=tasks.filter(t=>{ if(!dd) return false;
+    return ((t.act_start&&t.act_start>dd)||(t.act_end&&t.act_end>dd))||
+      ((t.status!=='TK_Complete')&&((t.early_start&&t.early_start<dd)||(t.early_end&&t.early_end<dd))); });
+  const noRes=tasks.filter(t=>!t.isMilestone&&(!t.cost||(t.cost.target===0&&t.cost.tqty===0&&t.cost.atComplete===0)));
+  const nrPct=notMile.length?noRes.length/notMile.length*100:0;
+  const missed=tasks.filter(t=>dd&&t.target_end&&t.target_end<dd&&t.status!=='TK_Complete');
+  const path=tracePath(m); const cpBreak=!(path.length>0&&path.every(t=>t.tf_days<=0.5));
+  const finAct=path[path.length-1]; let cpLen=0;
+  if(path.length){ const s=path[0].bestStart,e=finAct.bestFinish; cpLen=(s&&e)?calDaysBetween(s,e):0; }
+  const cpli=cpLen>0?(cpLen+(finAct?finAct.tf_days:0))/cpLen:null;
+  const shouldFin=tasks.filter(t=>dd&&t.target_end&&t.target_end<=dd);
+  const bei=shouldFin.length?shouldFin.filter(t=>t.status==='TK_Complete').length/shouldFin.length:null;
+  const checks=[
+    {n:1,name:'Logic',value:`${logicCount} act (${logicPct.toFixed(1)}%)`,raw:logicPct,threshold:'≤ 5%',pass:logicPct<=5,
+      detail:`${oe.noPred.length} missing predecessor, ${oe.noSucc.length} missing successor. Open logic breaks the network and makes float/CPM unreliable.`},
+    {n:2,name:'Leads (negative lag)',value:`${ra.leads.length}`,raw:ra.leads.length,threshold:'0',pass:ra.leads.length===0,
+      detail:'Negative lags compress logic artificially and are discouraged in a defensible schedule.'},
+    {n:3,name:'Lags',value:`${ra.lags.length} (${ra.lagPct.toFixed(1)}%)`,raw:ra.lagPct,threshold:'≤ 5%',pass:ra.lagPct<=5,
+      detail:'Excessive positive lags hide real activities and reduce transparency of the logic.'},
+    {n:4,name:'Relationship Types (FS%)',value:`${ra.fsPct.toFixed(1)}% FS`,raw:ra.fsPct,threshold:'≥ 90% FS',pass:ra.fsPct>=90,
+      detail:`FS ${ra.counts.FS}, SS ${ra.counts.SS}, FF ${ra.counts.FF}, SF ${ra.counts.SF}. Start-to-Finish links are almost always modelling errors.`},
+    {n:5,name:'Hard Constraints',value:`${hard.length}`,raw:hard.length,threshold:'≤ 5%',pass:(hard.length/N*100)<=5,
+      detail:'Mandatory / Start-On / Finish-On constraints override logic and can mask true float and critical path.'},
+    {n:6,name:'High Float (>44d)',value:`${highFloat.length} (${hfPct.toFixed(1)}%)`,raw:hfPct,threshold:'≤ 5%',pass:hfPct<=5,
+      detail:'Large total float often signals missing successor logic rather than genuine flexibility.'},
+    {n:7,name:'Negative Float',value:`${negFloat.length}`,raw:negFloat.length,threshold:'0',pass:negFloat.length===0,
+      detail:'Negative float means the current plan cannot meet an imposed date — recovery or re-sequencing is required.'},
+    {n:8,name:'High Duration (>44d)',value:`${highDur.length} (${hdPct.toFixed(1)}%)`,raw:hdPct,threshold:'≤ 5%',pass:hdPct<=5,
+      detail:'Very long activities should be broken down so progress and delay can be measured meaningfully.'},
+    {n:9,name:'Invalid Dates',value:`${invalid.length}`,raw:invalid.length,threshold:'0',pass:invalid.length===0,
+      detail:'Actuals in the future or forecast work in the past indicate the schedule was not properly statused at the data date.'},
+    {n:10,name:'Resources / Cost',value:`${noRes.length} (${nrPct.toFixed(1)}%)`,raw:nrPct,threshold:'informational',pass:null,
+      detail:'Activities with no resources or cost cannot support earned-value or resource-based delay analysis.'},
+    {n:11,name:'Missed Activities',value:`${missed.length}`,raw:missed.length,threshold:'≤ 5%',pass:(missed.length/N*100)<=5,
+      detail:'Activities that should have finished by the data date but are still open — a direct indicator of slippage.'},
+    {n:12,name:'Critical Path Test',value:cpBreak?'Broken / discontinuous':'Continuous',raw:cpBreak?0:1,threshold:'Continuous',pass:!cpBreak,
+      detail:'There must be an unbroken driving path from the data date to project completion.'},
+    {n:13,name:'CPLI',value:cpli!=null?cpli.toFixed(2):'n/a',raw:cpli,threshold:'≥ 0.95',pass:cpli!=null?cpli>=0.95:null,
+      detail:'Critical Path Length Index. <1.0 means the schedule is behind and needs to recover time.'},
+    {n:14,name:'BEI',value:bei!=null?bei.toFixed(2):'n/a',raw:bei,threshold:'≥ 0.95',pass:bei!=null?bei>=0.95:null,
+      detail:'Baseline Execution Index. <1.0 means activities are finishing slower than planned.'},
+  ];
+  const scored=checks.filter(c=>c.pass!==null); const passed=scored.filter(c=>c.pass).length;
+  const grade=passed>=13?'A':passed>=11?'B':passed>=9?'C':passed>=7?'D':'F';
+  return { checks,passed,scored:scored.length,grade,
+    extras:{ cpLenDays:cpLen, critCount:criticalActivities(m,0).length, negFloatCount:negFloat.length, cpli, bei,
+      hardConstraints:hard, highFloat, highDur, missed, invalid, noRes, openEnds:oe, rel:ra } };
+}
+function compare(a,b){
+  const A={},B={}; a.tasks.forEach(t=>{ if(!t.isLOE) A[t.code]=t; }); b.tasks.forEach(t=>{ if(!t.isLOE) B[t.code]=t; });
+  const added=[],deleted=[],changed=[],progressed=[];
+  Object.keys(B).forEach(c=>{ if(!A[c]){ added.push(B[c]); return; }
+    const ta=A[c],tb=B[c];
+    const sv=calDaysBetween(ta.bestStart,tb.bestStart), fv=calDaysBetween(ta.bestFinish,tb.bestFinish);
+    const dv=tb.dur_days-ta.dur_days, flv=tb.tf_days-ta.tf_days, pv=tb.pct-ta.pct;
+    const sc=ta.status!==tb.status, cc=ta.cstr_type!==tb.cstr_type, cal=ta.clndr_id!==tb.clndr_id, nm=ta.name!==tb.name;
+    if(sv||fv||dv||flv||sc||cc||cal||nm||Math.abs(pv)>0.5)
+      changed.push({code:c,name:tb.name,ta,tb,startVar:sv,finishVar:fv,durVar:dv,floatVar:flv,pctVar:pv,statusChanged:sc,cstrChanged:cc,calChanged:cal,nameChanged:nm});
+    if(sc&&((ta.status==='TK_NotStart'&&tb.status!=='TK_NotStart')||(ta.status==='TK_Active'&&tb.status==='TK_Complete')))
+      progressed.push({code:c,name:tb.name,from:ta.status,to:tb.status,actStart:tb.act_start,actEnd:tb.act_end}); });
+  Object.keys(A).forEach(c=>{ if(!B[c]) deleted.push(A[c]); });
+  const K=r=>r.pred_code+'->'+r.succ_code;
+  const RA={},RB={}; a.rels.forEach(r=>RA[K(r)]=r); b.rels.forEach(r=>RB[K(r)]=r);
+  const relAdded=[],relRemoved=[],relLagChanged=[],relTypeChanged=[];
+  Object.keys(RB).forEach(k=>{ if(!RA[k]) relAdded.push(RB[k]);
+    else { if(RA[k].lag_hr!==RB[k].lag_hr) relLagChanged.push({from:RA[k],to:RB[k]});
+           if(RA[k].type!==RB[k].type) relTypeChanged.push({from:RA[k],to:RB[k]}); } });
+  Object.keys(RA).forEach(k=>{ if(!RB[k]) relRemoved.push(RA[k]); });
+  const sumA=summarize(a),sumB=summarize(b); const pA=tracePath(a),pB=tracePath(b);
+  const sA=new Set(pA.map(t=>t.code)),sB=new Set(pB.map(t=>t.code));
+  return { a,b,sumA,sumB, finishSlip:calDaysBetween(sumA.forecastFinish,sumB.forecastFinish),
+    activityDelta:b.counts.activities-a.counts.activities, pctDelta:sumB.pctDurWeighted-sumA.pctDurWeighted,
+    added,deleted,changed,progressed, relAdded,relRemoved,relLagChanged,relTypeChanged, pathA:pA,pathB:pB,
+    cpChangedActs:{ onlyA:[...sA].filter(c=>!sB.has(c)), onlyB:[...sB].filter(c=>!sA.has(c)), sameCount:[...sB].filter(c=>sA.has(c)).length },
+    cpLenDeltaDays:(()=>{ const la=pA.length?calDaysBetween(pA[0].bestStart,pA[pA.length-1].bestFinish):0;
+      const lb=pB.length?calDaysBetween(pB[0].bestStart,pB[pB.length-1].bestFinish):0; return lb-la; })() };
+}
+
+</script>
+<script>
+// ============================================================================
+//  DEEP SCHEDULE ANALYSIS — open ends, relationship logic, activity path trace,
+//  redundancy, and the review-findings engine that drives the Word report.
+// ============================================================================
+const RT={PR_FS:'FS',PR_SS:'SS',PR_FF:'FF',PR_SF:'SF'};
+function relType(t){ return RT[t]||t||'?'; }
+
+// ---- OPEN ENDS ------------------------------------------------------------
+// An "open end" is an activity with no predecessor (open start) or no successor
+// (open finish). Exactly one project-start and one project-finish milestone are
+// legitimately open; everything else is a logic gap. We identify which ones are
+// the legitimate bookends so the report doesn't cry wolf.
+function openEnds(m){
+  const real=m.tasks.filter(t=>!t.isLOE);
+  const noPredAll=real.filter(t=>t.preds.length===0);
+  const noSuccAll=real.filter(t=>t.succs.length===0);
+  // Legitimate bookends: earliest start with no pred; latest finish with no succ
+  const startBook=noPredAll.slice().sort((a,b)=>(a.bestStart||0)-(b.bestStart||0))[0]||null;
+  const finishBook=noSuccAll.slice().sort((a,b)=>(b.bestFinish||0)-(a.bestFinish||0))[0]||null;
+  const noPred=noPredAll.filter(t=>!(startBook&&t.id===startBook.id));
+  const noSucc=noSuccAll.filter(t=>!(finishBook&&t.id===finishBook.id));
+  const bothIds=new Set(noPred.map(t=>t.id).filter(id=>noSucc.some(t=>t.id===id)));
+  const anyIds=new Set([...noPred.map(t=>t.id),...noSucc.map(t=>t.id)]);
+  return { noPred, noSucc, both:real.filter(t=>bothIds.has(t.id)), any:real.filter(t=>anyIds.has(t.id)),
+    noPredAll, noSuccAll, startBookend:startBook, finishBookend:finishBook,
+    dangling: real.filter(t=>anyIds.has(t.id)&&t.status!=='TK_Complete') };
+}
+
+// ---- RELATIONSHIP ANALYSIS ------------------------------------------------
+function relationshipAnalysis(m){
+  const counts={FS:0,SS:0,FF:0,SF:0}; const byType={FS:[],SS:[],FF:[],SF:[]};
+  m.rels.forEach(r=>{ const t=relType(r.type); if(counts[t]===undefined){counts[t]=0;byType[t]=[];} counts[t]++; byType[t].push(r); });
+  const total=m.rels.length||1;
+  const lags=m.rels.filter(r=>r.lag_hr>0), leads=m.rels.filter(r=>r.lag_hr<0);
+  // Activities driven ONLY by SS/FF (no FS predecessor) — a common review finding
+  const onlySSFF=m.tasks.filter(t=>!t.isLOE&&t.preds.length>0&&!t.preds.some(r=>relType(r.type)==='FS'));
+  // Redundant (duplicate) ties: same pred->succ pair appearing more than once
+  const seen={}, redundant=[];
+  m.rels.forEach(r=>{ const k=r.pred_id+'>'+r.succ_id; if(seen[k]) redundant.push(r); else seen[k]=r; });
+  // Large lags worth justifying
+  const bigLags=lags.slice().sort((a,b)=>b.lag_days-a.lag_days);
+  return { counts, byType, total:m.rels.length,
+    fsPct:counts.FS/total*100, ssPct:counts.SS/total*100, ffPct:counts.FF/total*100, sfPct:counts.SF/total*100,
+    lags, leads, lagPct:lags.length/total*100, sf:byType.SF||[], onlySSFF, redundant, bigLags,
+    lagTotalDays:lags.reduce((s,r)=>s+r.lag_days,0) };
+}
+
+// ---- PER-ACTIVITY RELATIONSHIP BREAKDOWN ----------------------------------
+function activityRelTable(m){
+  return m.tasks.filter(t=>!t.isLOE).map(t=>{
+    const p={FS:0,SS:0,FF:0,SF:0}, s={FS:0,SS:0,FF:0,SF:0};
+    t.preds.forEach(r=>{ const k=relType(r.type); if(p[k]!==undefined)p[k]++; });
+    t.succs.forEach(r=>{ const k=relType(r.type); if(s[k]!==undefined)s[k]++; });
+    const issues=[];
+    if(t.preds.length===0) issues.push('Open start');
+    if(t.succs.length===0) issues.push('Open finish');
+    if(p.SF+s.SF>0) issues.push('SF link');
+    if(t.preds.length>0&&p.FS===0) issues.push('No FS driver');
+    if(t.preds.some(r=>r.lag_hr<0)||t.succs.some(r=>r.lag_hr<0)) issues.push('Negative lag');
+    if(t.cstr_type) issues.push('Constraint');
+    return { t, code:t.code, name:t.name, pred:p, succ:s, nPred:t.preds.length, nSucc:t.succs.length,
+      sf:p.SF+s.SF, issues, tf:t.tf_days };
+  });
+}
+
+// ---- ACTIVITY PATH TRACE --------------------------------------------------
+// For a chosen activity: walk BACKWARD along driving predecessors to the start
+// of the network, and FORWARD along driving successors to project completion.
+// "Driving" = the predecessor that actually controls this activity's start
+// (flagged driving, or zero-float, or the latest-finishing).
+function activityPath(m, taskId, maxDepth){
+  maxDepth=maxDepth||200;
+  const t=m.taskById[taskId]; if(!t) return null;
+  function drivingPred(x){ let best=null,bs=-Infinity;
+    x.preds.forEach(r=>{ const p=m.taskById[r.pred_id]; if(!p) return; let s=0;
+      if(p.driving) s+=1000; if(p.tf_days<=0.0001) s+=500;
+      s+=(p.bestFinish?p.bestFinish.getTime()/1e10:0);
+      if(s>bs){ bs=s; best={task:p,rel:r}; } }); return best; }
+  function drivenSucc(x){ let best=null,bs=-Infinity;
+    x.succs.forEach(r=>{ const su=m.taskById[r.succ_id]; if(!su) return; let s=0;
+      if(su.driving) s+=1000; if(su.tf_days<=0.0001) s+=500;
+      s+=(su.bestStart? -su.bestStart.getTime()/1e10 : 0); // earliest-starting successor
+      if(s>bs){ bs=s; best={task:su,rel:r}; } }); return best; }
+  const back=[]; { const seen=new Set([t.id]); let cur=t,n=0;
+    while(n++<maxDepth){ const d=drivingPred(cur); if(!d||seen.has(d.task.id)) break;
+      seen.add(d.task.id); back.unshift({task:d.task,relToNext:d.rel}); cur=d.task; } }
+  const fwd=[]; { const seen=new Set([t.id]); let cur=t,n=0;
+    while(n++<maxDepth){ const d=drivenSucc(cur); if(!d||seen.has(d.task.id)) break;
+      seen.add(d.task.id); fwd.push({task:d.task,relFromPrev:d.rel}); cur=d.task; } }
+  const chainStart=back.length?back[0].task:t, chainEnd=fwd.length?fwd[fwd.length-1].task:t;
+  return { task:t, back, fwd,
+    allPreds:t.preds.map(r=>({rel:r,task:m.taskById[r.pred_id]})).filter(x=>x.task),
+    allSuccs:t.succs.map(r=>({rel:r,task:m.taskById[r.succ_id]})).filter(x=>x.task),
+    chainLengthDays:(chainStart.bestStart&&chainEnd.bestFinish)?Math.round((chainEnd.bestFinish-chainStart.bestStart)/86400000):null,
+    isCritical:t.tf_days<=0.0001, pathCount:back.length+1+fwd.length };
+}
+
+// ---- REVIEW FINDINGS + STATUS GRADE ---------------------------------------
+// Produces the structured content used by the Word comments sheet, grouped by
+// the sections of the Hill International submittal review form.
+function reviewFindings(m, cmp, opts){
+  opts=opts||{}; const fx=opts.fx||null;
+  const d=dcma14(m,{}); const ra=relationshipAnalysis(m); const oe=openEnds(m);
+  const s=summarize(m); const ex=execMetrics(m,opts.nearDays||5,fx);
+  const tasks=m.tasks.filter(t=>!t.isLOE); const inc=tasks.filter(t=>t.status!=='TK_Complete');
+  const nearCrit=inc.filter(t=>t.tf_days>0&&t.tf_days<=15).length;
+  const bac=projectCostFx(m,fx); const ccy=(fx&&fx.on&&fx.target)?fx.target:(m.currency.baseCode||'');
+  const cal=Object.values(m.calById||{});
+  const noCostAct=tasks.filter(t=>!t.isMilestone&&(!t.cost||taskCost(t,fx)===0));
+  const loeOnPath=m.tasks.filter(t=>t.isLOE&&t.tf_days<=0.0001);
+  const G=[],EP=[],C=[],N=[],CT=[]; // section bullet arrays
+
+  // ---------- 1.0 GENERAL ----------
+  G.push({b:'Schedule quality (DCMA 14-point)',
+    t:`the schedule passes ${d.passed} of ${d.scored} DCMA checks (grade ${d.grade}). ${d.checks.filter(c=>c.pass===false).length} checks fail and are itemised in the sections below. The Contractor shall address each failing check and resubmit.`});
+  if(d.extras.highFloat.length||nearCrit)
+    G.push({b:'Total float & near-critical profile',
+      t:`total float is exaggerated — ${d.extras.highFloat.length} activities (${(d.extras.highFloat.length/(inc.length||1)*100).toFixed(1)}%) exceed 44 days of float while ${nearCrit} activities are near-critical (1–15 days). The Contractor must revisit activity relationships to introduce the missing logic and reduce the resulting path-switching risk.`});
+  if(d.extras.negFloatCount>0)
+    G.push({b:'Negative float',
+      t:`${d.extras.negFloatCount} activities carry negative total float, indicating the programme as submitted cannot achieve the imposed dates. The Contractor shall re-sequence or propose mitigation and resubmit a programme showing zero or positive float to the contractual completion date.`});
+  G.push({b:'WBS & activity coding',
+    t:`the schedule contains ${m.counts.wbs} WBS elements and ${m.counts.activities} activities. The Contractor shall review and complete all WBS and activity coding — by zone/area, discipline, responsibility and cost account — to facilitate grouping, sorting, filtering and progress tracking, and to allow the WBS to be reconciled to the Cost Breakdown Structure (CBS).`});
+  if(cal.length<=1)
+    G.push({b:'Calendars',
+      t:`a single calendar${cal[0]?' ("'+cal[0].name+'")':''} is applied to all ${m.counts.activities} activities including off-site procurement. The Contractor shall introduce discipline / procurement-specific calendars and incorporate the official public holidays so that site and off-site works are represented correctly.`});
+  else
+    G.push({b:'Calendars',
+      t:`${cal.length} calendars are used (${cal.slice(0,4).map(c=>c.name).join(', ')}${cal.length>4?', …':''}). The Contractor shall confirm each calendar reflects the correct working week and the official public holidays.`});
+  G.push({b:'Progress reporting',
+    t:`weekly and monthly progress reports (formats to be submitted to the Engineer for review) shall be produced, including baseline vs actual dates and durations, schedule and performance % complete, planned vs actual S-curves and manpower histograms, procurement tracking log, two-week look-ahead, and deviation analysis with corrective actions. Any reported progress does not by itself constitute acceptance of actual progress, which is confirmed only through processed monthly invoices.`});
+  G.push({b:'Resubmission responsibility',
+    t:`any delay arising from resubmission of this schedule and its subsequent review period shall be the Contractor's responsibility.`});
+
+  // ---------- 2.0 ENGINEERING & PROCUREMENT ----------
+  const longDur=inc.filter(t=>!t.isMilestone&&t.dur_days>44).sort((a,b)=>b.dur_days-a.dur_days);
+  if(longDur.length)
+    EP.push({b:'Long-lead / high-duration activities',
+      t:`${longDur.length} activities exceed 44 days and are entered as single lump durations rather than being derived from the submittal → approval → fabrication → shipping cycle (e.g. ${longDur.slice(0,5).map(t=>t.name+' '+Math.round(t.dur_days)+'d').join(', ')}). The Contractor must break each into discrete sub-steps.`});
+  if(noCostAct.length)
+    EP.push({b:'Cost loading',
+      t:`${noCostAct.length} activities (${(noCostAct.length/(tasks.filter(t=>!t.isMilestone).length||1)*100).toFixed(1)}%) carry no cost or resource assignment${bac>0?`, against a total loaded value of ${fmtNum(bac)} ${ccy}`:''}. Early-programme Planned Value is therefore understated and the S-curve is back-loaded. The Contractor shall distribute material / PO cost to the procurement activities.`});
+  if(cal.length<=1)
+    EP.push({b:'Procurement calendar',
+      t:`fabrication and delivery activities run on the site calendar; the Contractor shall assign a 7-day continuous calendar to reflect off-site manufacturing and shipping.`});
+  if(ra.lags.length)
+    EP.push({b:'Lags justification',
+      t:`the Contractor must provide the Lags Justification Report for all ${ra.lags.length} lags used${ra.bigLags.length?`; the largest lags of ${ra.bigLags.slice(0,3).map(r=>Math.round(r.lag_days)+'d ('+r.pred_code+'→'+r.succ_code+')').join(', ')} require particular justification`:''}.`});
+
+  // ---------- 3.0 CONSTRUCTION / LOGIC ----------
+  if(oe.noSucc.length||oe.noPred.length){
+    const list=[...oe.noSucc.slice(0,6).map(t=>`${t.code} (${t.name}) — no successor`),
+                ...oe.noPred.slice(0,6).map(t=>`${t.code} (${t.name}) — no predecessor`)];
+    C.push({b:'Open ends',
+      t:`${oe.any.length} activities have open logic (${oe.noPred.length} without predecessor, ${oe.noSucc.length} without successor), excluding the legitimate project start and finish milestones. These include: ${list.join('; ')}${(oe.noSucc.length+oe.noPred.length)>12?'; and others as listed in the attached open-ends register':''}. The Contractor must close these open ends so that the network is fully tied.`});
+  }
+  C.push({b:'Relationship types',
+    t:`Finish-to-Start logic is ${ra.fsPct.toFixed(1)}% (FS ${ra.counts.FS}, SS ${ra.counts.SS}, FF ${ra.counts.FF}, SF ${ra.counts.SF}) and ${ra.onlySSFF.length} activities are driven solely by SS/FF with no FS tie. The Contractor shall convert unjustified SS/FF relationships to FS or provide technical justification.`});
+  if(ra.counts.SF>0)
+    C.push({b:'Start-to-Finish relationships',
+      t:`${ra.counts.SF} Start-to-Finish link${ra.counts.SF!==1?'s were':' was'} detected (${ra.sf.slice(0,6).map(r=>r.pred_code+'→'+r.succ_code).join(', ')}${ra.sf.length>6?', …':''}). SF logic is almost always a modelling error and **must** be removed and re-modelled with conventional FS/SS logic.`,must:true});
+  if(ra.leads.length)
+    C.push({b:'Negative lags (leads)',
+      t:`${ra.leads.length} relationship${ra.leads.length!==1?'s carry':' carries'} a negative lag (${ra.leads.slice(0,5).map(r=>r.pred_code+'→'+r.succ_code+' '+Math.round(r.lag_days)+'d').join(', ')}). Leads artificially compress the logic and **must** be removed.`,must:true});
+  if(loeOnPath.length)
+    C.push({b:'Level of Effort on the critical path',
+      t:`${loeOnPath.length} Level-of-Effort ${plur(loeOnPath.length,'activity','activities')} ${loeOnPath.length!==1?'ride':'rides'} the critical path (${loeOnPath.slice(0,3).map(t=>t.code+' '+t.name).join(', ')}) and ${loeOnPath.length!==1?'distort':'distorts'} total float. The Contractor **must** re-type ${loeOnPath.length!==1?'these items':'this item'} so that completion is genuinely calculated.`,must:true});
+  if(d.extras.hardConstraints.length)
+    C.push({b:'Hard constraints',
+      t:`${d.extras.hardConstraints.length} ${plur(d.extras.hardConstraints.length,'activity','activities')} ${d.extras.hardConstraints.length!==1?'carry':'carries'} hard (mandatory / must-start / must-finish) constraints (${d.extras.hardConstraints.slice(0,5).map(t=>t.code).join(', ')}${d.extras.hardConstraints.length>5?', …':''}), which override logic and suppress true float. ${d.extras.hardConstraints.length!==1?'These':'This'} shall be removed or justified so the critical path is driven by logic.`});
+  if(ra.redundant.length)
+    C.push({b:'Redundant logic',
+      t:`${ra.redundant.length} duplicate (redundant) predecessor–successor ties were detected and shall be removed.`});
+  if(d.extras.missed.length)
+    C.push({b:'Missed activities',
+      t:`${d.extras.missed.length} activities should have finished by the data date (${fmtDate(m.dataDate)}) but remain open. The Contractor shall status these correctly and explain the variance.`});
+  if(d.extras.invalid.length)
+    C.push({b:'Statusing / invalid dates',
+      t:`${d.extras.invalid.length} activities carry invalid dates relative to the data date (actual dates in the future, or remaining work scheduled in the past). The programme shall be re-statused so that no remaining work sits behind the data date.`});
+
+  // ---------- 4.0 NARRATIVE ----------
+  N.push({t:'Narrative report should be included covering the following points:'});
+  ['Quantities for major materials used','Project potential risks and expected concerns',
+   'Project interfaces with other running projects (if any)','Productivity rates for major trades',
+   'Lags Justification Report (list of used lags and the corresponding justification)',
+   "Contractor's proposed list of equipment",'Description for project longest path',
+   'Basis of schedule: calendars, constraints and assumptions register'].forEach(x=>N.push({t:x,sub:true}));
+
+  // ---------- 5.0 CONTRACTUAL ----------
+  CT.push({b:'Programme status under Sub-Clause 8.3',
+    t:`until all comments herein are addressed and the baseline is fully compliant with the requirements of FIDIC Sub-Clause 8.3, the in-hand version shall serve only as a scheduling and monitoring tool to convey progress information, facilitate sequencing of the Works and measure progress towards the Time for Completion. It shall not be used to assess delays or any Extension of Time until all comments are incorporated, after which it will be used retrospectively to assess claims and variations.`});
+  CT.push({b:"Contractor's responsibility for the Works",
+    t:`the Engineer's review or approval of this programme does not relieve the Contractor of responsibility for completing all Contracted Works within the applicable completion dates. The omission of any activity or data that appears elsewhere in the Contract documents does not relieve the Contractor of the obligation to complete such works.`});
+  if(bac>0) CT.push({b:'Contract value reconciliation',
+    t:`the Budgeted Total Cost reflected in the schedule (${fmtNum(bac)} ${ccy}) shall be reconciled to the accepted Contract value / priced BOQ; any difference shall be rectified by the Contractor and is considered requisite to the final acceptance of the time schedule.`});
+  const mileCount=m.tasks.filter(t=>t.isMilestone).length;
+  CT.push({b:'Contractual milestones & Key Dates',
+    t:`${mileCount} milestone${mileCount!==1?'s are':' is'} currently defined. The Contractor must add the contractual Sectional Completion, Taking-Over and Key Dates, together with the site-access / handover milestones, each tied by Finish-to-Start logic, so the programme reflects the contractual completion obligations and supports any future Extension-of-Time assessment.`});
+  CT.push({b:'Critical-path integrity for EOT',
+    t:`float suppression must be removed so the baseline can support a Time-Impact Analysis under Sub-Clause 8.5.`});
+  CT.push({b:'Review period for submittals',
+    t:`as per the Contract's submittal procedures the Engineer shall be allowed the specified period for review of each submittal; any delay arising from resubmission and re-review is the Contractor's sole responsibility and shall not form grounds for an Extension of Time.`});
+
+  // ---------- UPDATE / COMPARISON SECTION ----------
+  const U=[];
+  if(cmp){
+    const slip=cmp.finishSlip;
+    U.push({b:'Change in forecast completion',
+      t: slip===0||slip==null
+        ? `the forecast completion date is unchanged at ${fmtDate(cmp.sumB.forecastFinish)}.`
+        : `the forecast completion date has moved from ${fmtDate(cmp.sumA.forecastFinish)} to ${fmtDate(cmp.sumB.forecastFinish)}, a ${slip>0?'slippage':'gain'} of ${Math.abs(slip)} calendar ${plur(Math.abs(slip),'day','days')}.`});
+    U.push({b:'Progress achieved',
+      t:`overall completion moved from ${cmp.sumA.pctDurWeighted.toFixed(1)}% to ${cmp.sumB.pctDurWeighted.toFixed(1)}%, with ${cmp.progressed.length} activities advancing status since the previous update.`});
+    if(cmp.added.length||cmp.deleted.length)
+      U.push({b:'Scope changes',
+        t:`${cmp.added.length} activities were added and ${cmp.deleted.length} deleted${cmp.deleted.length?` (deleted: ${cmp.deleted.slice(0,8).map(t=>t.code).join(', ')}${cmp.deleted.length>8?', …':''})`:''}. All additions and deletions shall be justified in the narrative and, where they affect the contractual scope, supported by an approved Variation.`});
+    if(cmp.relAdded.length||cmp.relRemoved.length||cmp.relLagChanged.length||cmp.relTypeChanged.length)
+      U.push({b:'Logic changes',
+        t:`network logic was modified between updates: ${cmp.relAdded.length} relationships added, ${cmp.relRemoved.length} removed, ${cmp.relLagChanged.length} re-lagged and ${cmp.relTypeChanged.length} changed relationship type${cmp.relTypeChanged.length?` (${cmp.relTypeChanged.slice(0,5).map(x=>`${x.to.pred_code}→${x.to.succ_code} ${relType(x.from.type)}→${relType(x.to.type)}`).join('; ')})`:''}. Logic changes between updates shift the critical path independently of physical progress and **must** be justified in writing.`,must:true});
+    if(cmp.cpChangedActs.onlyB.length)
+      U.push({b:'Critical path shift',
+        t:`the driving path now runs through ${cmp.cpChangedActs.onlyB.length} newly-critical activities (${cmp.cpChangedActs.onlyB.slice(0,8).join(', ')}${cmp.cpChangedActs.onlyB.length>8?', …':''}) while ${cmp.cpChangedActs.onlyA.length} previously-critical activities dropped off. Critical path length changed by ${cmp.cpLenDeltaDays>0?'+':''}${cmp.cpLenDeltaDays} days.`});
+    const slipped=cmp.changed.filter(x=>x.finishVar>0).sort((a,b)=>b.finishVar-a.finishVar);
+    if(slipped.length)
+      U.push({b:'Activities driving the slippage',
+        t:`${slipped.length} activities finish later than the previous update; the largest movements are ${slipped.slice(0,6).map(x=>`${x.code} (+${x.finishVar}d)`).join(', ')}. The Contractor shall explain the cause of each and state the recovery measures proposed.`});
+    const cstr=cmp.changed.filter(x=>x.cstrChanged), cals=cmp.changed.filter(x=>x.calChanged), durs=cmp.changed.filter(x=>Math.abs(x.durVar)>0.5);
+    if(cstr.length||cals.length||durs.length)
+      U.push({b:'Other changes',
+        t:`${durs.length} activities had their original duration changed, ${cstr.length} had constraints added or removed and ${cals.length} were re-assigned to a different calendar. Each shall be justified.`});
+  }
+
+  // ---------- STATUS GRADE (A / B / C / D) ----------
+  // A = Approved · B = Approved as noted · C = Revise & resubmit · D = Rejected
+  const critical=[];
+  if(oe.any.length> Math.max(3, tasks.length*0.02)) critical.push('significant open logic');
+  if(ra.counts.SF>0) critical.push('Start-to-Finish relationships present');
+  if(d.extras.negFloatCount>0) critical.push('negative float');
+  if(ra.fsPct<80) critical.push('FS logic below 80%');
+  if(d.extras.hardConstraints.length>tasks.length*0.05) critical.push('excessive hard constraints');
+  if(d.checks.find(c=>c.n===12&&c.pass===false)) critical.push('discontinuous critical path');
+  let status,statusText;
+  if(d.passed>=13&&critical.length===0){ status='A'; statusText='Approved'; }
+  else if(d.passed>=10&&critical.length<=1){ status='B'; statusText='Approved as noted — resubmission not required, comments to be incorporated in the next update'; }
+  else if(d.passed>=7||critical.length<=3){ status='C'; statusText='Revise and resubmit — comments to be incorporated and the programme resubmitted for review'; }
+  else { status='D'; statusText='Rejected — the programme does not meet the requirements of the Contract and shall be re-prepared'; }
+  return { sections:{ general:G, engProc:EP, construction:C, narrative:N, contractual:CT, update:U },
+    status, statusText, criticalIssues:critical, dcma:d, rel:ra, openEnds:oe, summary:s, exec:ex,
+    bac, currency:ccy, isUpdate:!!cmp };
+}
+function plur(n,one,many){ return Math.abs(n)===1?one:many; }
+function fmtNum(n){ if(n==null||isNaN(n)) return '—'; return Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtDate(d){ if(!d) return '—'; const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return String(d.getDate()).padStart(2,'0')+'-'+M[d.getMonth()]+'-'+d.getFullYear(); }
+
+/* node export stripped */
+</script>
+<script>
+// ============================================================================
+//  WORD REPORT GENERATOR — builds a real .docx (OOXML + JSZip) reproducing the
+//  Hill International "Submittal Review Comments Form" layout, populated with
+//  the live analysis findings.
+// ============================================================================
+function xmlEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// Inline formatting: **bold** segments -> runs; keeps everything else plain.
+function runs(text,opts){
+  opts=opts||{};
+  const base=(b)=>`<w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>${b?'<w:b/>':''}${opts.italic?'<w:i/>':''}`+
+    `<w:color w:val="${opts.color||'000000'}"/><w:sz w:val="${opts.sz||20}"/><w:szCs w:val="${opts.sz||20}"/></w:rPr>`;
+  const parts=String(text==null?'':text).split(/\*\*/);
+  let out='';
+  parts.forEach((p,i)=>{ if(p==='') return; const b=(i%2===1)||opts.bold;
+    out+=`<w:r>${base(b)}<w:t xml:space="preserve">${xmlEsc(p)}</w:t></w:r>`; });
+  return out;
+}
+function para(text,opts){
+  opts=opts||{};
+  const jc=opts.align?`<w:jc w:val="${opts.align}"/>`:'';
+  const ind=opts.bullet?`<w:numPr><w:ilvl w:val="${opts.level||0}"/><w:numId w:val="1"/></w:numPr>`:'';
+  const spacing=`<w:spacing w:before="${opts.before||0}" w:after="${opts.after==null?60:opts.after}" w:line="240" w:lineRule="auto"/>`;
+  const shd=opts.shade?`<w:shd w:val="clear" w:color="auto" w:fill="${opts.shade}"/>`:'';
+  return `<w:p><w:pPr>${ind}${spacing}${jc}${shd}</w:pPr>${runs(text,opts)}</w:p>`;
+}
+function cell(content,opts){
+  opts=opts||{};
+  const w=opts.w?`<w:tcW w:w="${opts.w}" w:type="dxa"/>`:'<w:tcW w:w="0" w:type="auto"/>';
+  const shd=opts.shade?`<w:shd w:val="clear" w:color="auto" w:fill="${opts.shade}"/>`:'';
+  const span=opts.span?`<w:gridSpan w:val="${opts.span}"/>`:'';
+  const va=`<w:vAlign w:val="${opts.valign||'center'}"/>`;
+  const body=Array.isArray(content)?content.join(''):content;
+  return `<w:tc><w:tcPr>${w}${span}${shd}${va}</w:tcPr>${body||para('')}</w:tc>`;
+}
+function row(cells,opts){ opts=opts||{};
+  return `<w:tr>${opts.header?'<w:trPr><w:tblHeader/></w:trPr>':''}${cells.join('')}</w:tr>`; }
+function table(rows,opts){
+  opts=opts||{};
+  const grid=(opts.grid||[]).map(w=>`<w:gridCol w:w="${w}"/>`).join('');
+  const borders=opts.noBorders?
+    `<w:tblBorders><w:top w:val="none"/><w:left w:val="none"/><w:bottom w:val="none"/><w:right w:val="none"/><w:insideH w:val="none"/><w:insideV w:val="none"/></w:tblBorders>`:
+    `<w:tblBorders>${['top','left','bottom','right','insideH','insideV'].map(s=>`<w:${s} w:val="single" w:sz="6" w:space="0" w:color="7F7F7F"/>`).join('')}</w:tblBorders>`;
+  return `<w:tbl><w:tblPr><w:tblW w:w="${opts.width||5000}" w:type="pct"/>${borders}`+
+    `<w:tblCellMar><w:top w:w="60" w:type="dxa"/><w:left w:w="80" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tblCellMar>`+
+    `</w:tblPr>${grid?`<w:tblGrid>${grid}</w:tblGrid>`:''}${rows.join('')}</w:tbl>`;
+}
+function sectionHeading(title){
+  // Shaded single-cell table used as the section band, like the template
+  return table([ row([ cell(para(title,{bold:true,sz:22,color:'0F2C47'}),{shade:'DCE3EA'}) ]) ],{width:5000})+para('',{after:40});
+}
+function bulletBlock(items){
+  // items: {b:'Lead-in', t:'text', must:bool}
+  let out='';
+  items.forEach(it=>{
+    if(it.sub){ out+=para('• '+it.t,{sz:19,before:0,after:30}); return; }
+    const lead=it.b?`**${it.b}: **`:'';
+    out+=para(lead+(it.t||''),{sz:19,bullet:true,after:60});
+  });
+  return out||para('None.',{sz:19,italic:true});
+}
+
+function buildDocumentXml(F,meta){
+  const P=[];
+  // ---- Header band: firm + form title ----
+  P.push(table([ row([
+      cell(para('HILL',{bold:true,sz:40,color:'C00000'})+para('International',{bold:true,sz:20,color:'000000'}),{w:2600}),
+      cell(para('SUBMITTAL REVIEW COMMENTS FORM',{bold:true,sz:28,align:'right'}),{w:6800})
+    ]) ],{width:5000,noBorders:true}));
+  P.push(para('',{after:60}));
+  P.push(table([
+    row([ cell(para('Project No:',{bold:true,sz:19}),{w:1600,shade:'F2F2F2'}), cell(para(meta.projectNo||'',{sz:19}),{w:3000}),
+          cell(para('Contract No:',{bold:true,sz:19}),{w:1600,shade:'F2F2F2'}), cell(para(meta.contractNo||'',{sz:19}),{w:3200}) ]),
+    row([ cell(para('Work Package No:',{bold:true,sz:19}),{shade:'F2F2F2'}), cell(para(meta.workPackage||'',{sz:19})),
+          cell(para('Project:',{bold:true,sz:19}),{shade:'F2F2F2'}), cell(para(meta.projectName||'',{sz:19})) ])
+  ],{width:5000}));
+  P.push(para('',{after:80}));
+  // ---- Review by ----
+  P.push(table([ row([
+      cell(para('REVIEW BY:',{bold:true,sz:19}),{w:1800,shade:'F2F2F2'}),
+      cell(para('☐  DESIGN CONSULTANT',{sz:18}),{w:2400}),
+      cell(para('☐  SUPERVISION CONSULTANT',{sz:18}),{w:2800}),
+      cell(para('☒  ENGINEER (HILL)',{sz:18,bold:true}),{w:2200}),
+      cell(para('☐  OTHER',{sz:18}),{w:1200}) ]) ],{width:5000}));
+  P.push(para('',{after:80}));
+  // ---- Submittal details + status ----
+  P.push(table([
+    row([ cell(para('Submittal Review Ref.:',{bold:true,sz:19}),{w:2400,shade:'F2F2F2'}), cell(para(meta.reviewRef||'',{sz:19}),{w:3000}),
+          cell(para('Submittal No.:',{bold:true,sz:19}),{w:1800,shade:'F2F2F2'}), cell(para(meta.submittalNo||'',{sz:19}),{w:1400}),
+          cell(para('Rev. No.:',{bold:true,sz:19}),{w:1000,shade:'F2F2F2'}), cell(para(meta.revNo||'0',{sz:19}),{w:800}) ]),
+    row([ cell(para('Type of Submittal:',{bold:true,sz:19}),{shade:'F2F2F2'}), cell(para(meta.submittalType||'Document Submittal',{sz:19})),
+          cell(para('Date of Review:',{bold:true,sz:19}),{shade:'F2F2F2'}), cell(para(meta.reviewDate||'',{sz:19}),{span:3}) ]),
+    row([ cell(para('SUBJECT:',{bold:true,sz:19}),{shade:'F2F2F2'}), cell(para(meta.subject||'',{sz:19}),{span:3}),
+          cell(para('REVIEW / APPROVAL STATUS:',{bold:true,sz:17}),{shade:'F2F2F2'}),
+          cell(para(F.status,{bold:true,sz:36,color:'C00000',align:'center'})) ])
+  ],{width:5000}));
+  P.push(para('',{after:60}));
+  P.push(table([ row([ cell(para('Status meaning: **'+F.status+'** — '+F.statusText,{sz:18}),{shade:'FDF3E2'}) ]) ],{width:5000}));
+  P.push(para('',{after:100}));
+
+  // ---- Executive basis of review ----
+  P.push(sectionHeading('Basis of Review — Schedule Analysis Summary'));
+  const d=F.dcma, s=F.summary;
+  P.push(table([
+    row([ cell(para('Metric',{bold:true,sz:18}),{shade:'DCE3EA',w:3000}), cell(para('Result',{bold:true,sz:18}),{shade:'DCE3EA',w:2200}),
+          cell(para('Metric',{bold:true,sz:18}),{shade:'DCE3EA',w:3000}), cell(para('Result',{bold:true,sz:18}),{shade:'DCE3EA',w:2200}) ],{header:true}),
+    row([ cell(para('Total activities',{sz:18})), cell(para(String(s.total),{sz:18})),
+          cell(para('Data date',{sz:18})), cell(para(meta.dataDate||'',{sz:18})) ]),
+    row([ cell(para('Complete / In progress / Not started',{sz:18})), cell(para(`${s.complete} / ${s.inProgress} / ${s.notStarted}`,{sz:18})),
+          cell(para('Overall % complete (duration-weighted)',{sz:18})), cell(para(s.pctDurWeighted.toFixed(1)+'%',{sz:18})) ]),
+    row([ cell(para('Forecast completion',{sz:18})), cell(para(meta.forecastFinish||'',{sz:18})),
+          cell(para('Relationships',{sz:18})), cell(para(String(F.rel.total),{sz:18})) ]),
+    row([ cell(para('DCMA 14-point result',{sz:18})), cell(para(`${d.passed} of ${d.scored} passed (grade ${d.grade})`,{sz:18,bold:true})),
+          cell(para('FS logic',{sz:18})), cell(para(F.rel.fsPct.toFixed(1)+'%',{sz:18})) ]),
+    row([ cell(para('Open ends (no pred / no succ)',{sz:18})), cell(para(`${F.openEnds.noPred.length} / ${F.openEnds.noSucc.length}`,{sz:18})),
+          cell(para('SF relationships',{sz:18})), cell(para(String(F.rel.counts.SF),{sz:18,bold:F.rel.counts.SF>0,color:F.rel.counts.SF>0?'C00000':'000000'})) ]),
+    row([ cell(para('Negative float activities',{sz:18})), cell(para(String(d.extras.negFloatCount),{sz:18,color:d.extras.negFloatCount>0?'C00000':'000000'})),
+          cell(para('Critical path length',{sz:18})), cell(para(d.extras.cpLenDays+' days',{sz:18})) ]),
+    row([ cell(para('CPLI',{sz:18})), cell(para(d.extras.cpli!=null?d.extras.cpli.toFixed(2):'n/a',{sz:18})),
+          cell(para('BEI',{sz:18})), cell(para(d.extras.bei!=null?d.extras.bei.toFixed(2):'n/a',{sz:18})) ])
+  ],{width:5000}));
+  P.push(para('',{after:120}));
+
+  // ---- DCMA detail table ----
+  P.push(sectionHeading('DCMA 14-Point Assessment'));
+  const dr=[ row([ cell(para('#',{bold:true,sz:17}),{shade:'DCE3EA',w:500}), cell(para('Check',{bold:true,sz:17}),{shade:'DCE3EA',w:2600}),
+      cell(para('Result',{bold:true,sz:17}),{shade:'DCE3EA',w:2200}), cell(para('Threshold',{bold:true,sz:17}),{shade:'DCE3EA',w:1600}),
+      cell(para('Verdict',{bold:true,sz:17}),{shade:'DCE3EA',w:1200}) ],{header:true}) ];
+  d.checks.forEach(c=>{ const v=c.pass===null?'INFO':(c.pass?'PASS':'FAIL');
+    dr.push(row([ cell(para(String(c.n),{sz:17})), cell(para(c.name,{sz:17})), cell(para(c.value,{sz:17})),
+      cell(para(c.threshold,{sz:17})), cell(para(v,{sz:17,bold:true,color:c.pass===false?'C00000':(c.pass?'1E8E5A':'7F7F7F')})) ])); });
+  P.push(table(dr,{width:5000}));
+  P.push(para('',{after:120}));
+
+  // ---- Comment sections ----
+  const S=F.sections; let n=1;
+  const emit=(title,items)=>{ if(!items||!items.length) return;
+    P.push(para(`${n}.0`,{bold:true,sz:20})); n++;
+    P.push(sectionHeading(title)); P.push(bulletBlock(items)); P.push(para('',{after:100})); };
+  emit('General Comments',S.general);
+  emit('Engineering & Procurement',S.engProc);
+  emit('Construction / Schedule Logic',S.construction);
+  if(F.isUpdate) emit('Progress Update — Changes Since Previous Revision',S.update);
+  emit('Narrative Report',S.narrative);
+  emit('Contractual',S.contractual);
+
+  // ---- Registers (open ends, SF, logic changes) ----
+  if(F.openEnds.noPred.length||F.openEnds.noSucc.length){
+    P.push(sectionHeading('Appendix A — Open Ends Register'));
+    const r=[ row([ cell(para('Activity ID',{bold:true,sz:17}),{shade:'DCE3EA',w:1800}), cell(para('Activity Name',{bold:true,sz:17}),{shade:'DCE3EA',w:5000}),
+        cell(para('Issue',{bold:true,sz:17}),{shade:'DCE3EA',w:1800}), cell(para('Total Float',{bold:true,sz:17}),{shade:'DCE3EA',w:1400}) ],{header:true}) ];
+    F.openEnds.noPred.slice(0,60).forEach(t=>r.push(row([ cell(para(t.code,{sz:17})), cell(para(t.name,{sz:17})),
+      cell(para('No predecessor',{sz:17,color:'C00000'})), cell(para(Math.round(t.tf_days)+'d',{sz:17})) ])));
+    F.openEnds.noSucc.slice(0,60).forEach(t=>r.push(row([ cell(para(t.code,{sz:17})), cell(para(t.name,{sz:17})),
+      cell(para('No successor',{sz:17,color:'C00000'})), cell(para(Math.round(t.tf_days)+'d',{sz:17})) ])));
+    P.push(table(r,{width:5000})); P.push(para('',{after:120}));
+  }
+  if(F.rel.counts.SF>0||F.rel.leads.length){
+    P.push(sectionHeading('Appendix B — Invalid / Questionable Logic'));
+    const r=[ row([ cell(para('Predecessor',{bold:true,sz:17}),{shade:'DCE3EA',w:2200}), cell(para('Successor',{bold:true,sz:17}),{shade:'DCE3EA',w:2200}),
+        cell(para('Type',{bold:true,sz:17}),{shade:'DCE3EA',w:1200}), cell(para('Lag',{bold:true,sz:17}),{shade:'DCE3EA',w:1200}),
+        cell(para('Finding',{bold:true,sz:17}),{shade:'DCE3EA',w:3200}) ],{header:true}) ];
+    F.rel.sf.slice(0,40).forEach(x=>r.push(row([ cell(para(x.pred_code,{sz:17})), cell(para(x.succ_code,{sz:17})),
+      cell(para('SF',{sz:17,bold:true,color:'C00000'})), cell(para(Math.round(x.lag_days)+'d',{sz:17})),
+      cell(para('Start-to-Finish logic — to be removed and re-modelled',{sz:17})) ])));
+    F.rel.leads.slice(0,40).forEach(x=>r.push(row([ cell(para(x.pred_code,{sz:17})), cell(para(x.succ_code,{sz:17})),
+      cell(para(x.type.replace('PR_',''),{sz:17})), cell(para(Math.round(x.lag_days)+'d',{sz:17,color:'C00000'})),
+      cell(para('Negative lag (lead) — to be removed',{sz:17})) ])));
+    P.push(table(r,{width:5000})); P.push(para('',{after:120}));
+  }
+  if(meta.logicChanges&&meta.logicChanges.length){
+    P.push(sectionHeading('Appendix C — Logic Changes Since Previous Revision'));
+    const r=[ row([ cell(para('Change',{bold:true,sz:17}),{shade:'DCE3EA',w:1800}), cell(para('Predecessor',{bold:true,sz:17}),{shade:'DCE3EA',w:2200}),
+        cell(para('Successor',{bold:true,sz:17}),{shade:'DCE3EA',w:2200}), cell(para('Detail',{bold:true,sz:17}),{shade:'DCE3EA',w:3800}) ],{header:true}) ];
+    meta.logicChanges.slice(0,120).forEach(c=>r.push(row([ cell(para(c.type,{sz:17,bold:true,color:c.type==='Removed'?'C00000':(c.type==='Added'?'1E8E5A':'C77700')})),
+      cell(para(c.pred,{sz:17})), cell(para(c.succ,{sz:17})), cell(para(c.detail||'',{sz:17})) ])));
+    P.push(table(r,{width:5000})); P.push(para('',{after:120}));
+  }
+  if(meta.deletedActivities&&meta.deletedActivities.length){
+    P.push(sectionHeading('Appendix D — Activities Added / Deleted'));
+    const r=[ row([ cell(para('Change',{bold:true,sz:17}),{shade:'DCE3EA',w:1600}), cell(para('Activity ID',{bold:true,sz:17}),{shade:'DCE3EA',w:2000}),
+        cell(para('Activity Name',{bold:true,sz:17}),{shade:'DCE3EA',w:6400}) ],{header:true}) ];
+    meta.deletedActivities.slice(0,120).forEach(c=>r.push(row([
+      cell(para(c.kind,{sz:17,bold:true,color:c.kind==='Deleted'?'C00000':'1E8E5A'})), cell(para(c.code,{sz:17})), cell(para(c.name,{sz:17})) ])));
+    P.push(table(r,{width:5000})); P.push(para('',{after:120}));
+  }
+
+  // ---- Signature block ----
+  P.push(para('',{after:200}));
+  P.push(table([
+    row([ cell(para("Main Reviewer's Name:",{bold:true,sz:18}),{shade:'F2F2F2',w:2400}), cell(para(meta.reviewerName||'Karim Metwally',{sz:18}),{w:2600}),
+          cell(para('Designation:',{bold:true,sz:18}),{shade:'F2F2F2',w:1800}), cell(para(meta.reviewerRole||'Planning Engineer',{sz:18}),{w:2000}),
+          cell(para('Date:',{bold:true,sz:18}),{shade:'F2F2F2',w:1000}), cell(para(meta.reviewDate||'',{sz:18}),{w:1600}) ]),
+    row([ cell(para("Reviewer's Name:",{bold:true,sz:18}),{shade:'F2F2F2'}), cell(para(meta.reviewer2||'',{sz:18})),
+          cell(para('Designation:',{bold:true,sz:18}),{shade:'F2F2F2'}), cell(para('',{sz:18})),
+          cell(para('Date:',{bold:true,sz:18}),{shade:'F2F2F2'}), cell(para('',{sz:18})) ])
+  ],{width:5000}));
+  P.push(para('',{after:120}));
+  P.push(para('Generated from the P6 Schedule Analysis Dashboard · Prepared by Eng. Karim Tarek · '+(meta.reviewDate||''),{sz:16,italic:true,color:'7F7F7F',align:'center'}));
+
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+<w:body>${P.join('')}
+<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="850" w:right="850" w:bottom="850" w:left="850" w:header="480" w:footer="480" w:gutter="0"/></w:sectPr>
+</w:body></w:document>`;
+}
+
+const STYLES_XML=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+<w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/><w:sz w:val="20"/></w:rPr></w:rPrDefault>
+<w:pPrDefault><w:pPr><w:spacing w:after="60"/></w:pPr></w:pPrDefault></w:docDefaults>
+<w:style w:type="paragraph" w:styleId="Normal" w:default="1"><w:name w:val="Normal"/></w:style>
+<w:style w:type="paragraph" w:styleId="ListParagraph"><w:name w:val="List Paragraph"/><w:pPr><w:ind w:left="360"/></w:pPr></w:style>
+</w:styles>`;
+const NUMBERING_XML=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+<w:abstractNum w:abstractNumId="0"><w:multiLevelType w:val="hybridMultilevel"/>
+<w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="bullet"/><w:lvlText w:val="•"/><w:lvlJc w:val="left"/>
+<w:pPr><w:ind w:left="360" w:hanging="240"/></w:pPr><w:rPr><w:rFonts w:ascii="Symbol" w:hAnsi="Symbol"/></w:rPr></w:lvl>
+<w:lvl w:ilvl="1"><w:start w:val="1"/><w:numFmt w:val="bullet"/><w:lvlText w:val="o"/><w:lvlJc w:val="left"/>
+<w:pPr><w:ind w:left="720" w:hanging="240"/></w:pPr></w:lvl></w:abstractNum>
+<w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num></w:numbering>`;
+const CONTENT_TYPES=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+<Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>
+<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>
+<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>
+</Types>`;
+const RELS=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
+</Relationships>`;
+const DOC_RELS=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/>
+</Relationships>`;
+function coreXml(meta){ const now=new Date().toISOString().replace(/\.\d+Z$/,'Z');
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties"
+ xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+<dc:title>${xmlEsc((meta.projectName||'Project')+' — Submittal Review Comments')}</dc:title>
+<dc:creator>Eng. Karim Tarek</dc:creator><cp:lastModifiedBy>Eng. Karim Tarek</cp:lastModifiedBy>
+<dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created>
+<dcterms:modified xsi:type="dcterms:W3CDTF">${now}</dcterms:modified></cp:coreProperties>`; }
+const APP_XML=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>P6 Schedule Analysis Dashboard</Application></Properties>`;
+
+// Assemble the .docx as a Blob using JSZip (CDN)
+function generateDocxBlob(F,meta){
+  if(typeof JSZip==='undefined') throw new Error('JSZip library not loaded — check your internet connection and retry.');
+  const zip=new JSZip();
+  zip.file('[Content_Types].xml',CONTENT_TYPES);
+  zip.folder('_rels').file('.rels',RELS);
+  const w=zip.folder('word');
+  w.file('document.xml',buildDocumentXml(F,meta));
+  w.file('styles.xml',STYLES_XML);
+  w.file('numbering.xml',NUMBERING_XML);
+  w.folder('_rels').file('document.xml.rels',DOC_RELS);
+  const dp=zip.folder('docProps'); dp.file('core.xml',coreXml(meta)); dp.file('app.xml',APP_XML);
+  return zip.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    compression:'DEFLATE',compressionOptions:{level:6}});
+}
+/* node export stripped */
+</script>
+<script>
+/* ================================================================  UI LAYER  ================================================================ */
+(function(){
+'use strict';
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+const el=(t,c,h)=>{const e=document.createElement(t);if(c)e.className=c;if(h!==undefined)e.innerHTML=h;return e;};
+const STATE={A:null,B:null,current:null,activeTab:'exec',critThreshold:0,critThreshold2:5,charts:{},
+  fx:{on:false,rates:{},target:''},selectedActivity:null,
+  meta:{projectNo:'',contractNo:'',workPackage:'',reviewRef:'',submittalNo:'',revNo:'0',
+    submittalType:'Document Submittal',subject:'',reviewerName:'Karim Metwally',reviewerRole:'Planning Engineer',reviewer2:''}};
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function fD(d){ if(!d) return '—'; return `${String(d.getDate()).padStart(2,'0')}-${MON[d.getMonth()]}-${d.getFullYear()}`; }
+function fN(n,dec=0){ if(n===null||n===undefined||isNaN(n)) return '—'; return Number(n).toLocaleString('en-US',{minimumFractionDigits:dec,maximumFractionDigits:dec}); }
+function curLabel(){ const m=STATE.current; if(STATE.fx.on&&STATE.fx.target) return STATE.fx.target; return (m&&m.currency&&(m.currency.baseCode||m.currency.baseSymbol))||''; }
+function money(n){ if(n==null||isNaN(n)) return '—'; const u=curLabel(),a=Math.abs(n); let s;
+  if(a>=1e9)s=(n/1e9).toFixed(2)+'B'; else if(a>=1e6)s=(n/1e6).toFixed(2)+'M'; else if(a>=1e3)s=(n/1e3).toFixed(1)+'K'; else s=String(Math.round(n));
+  return (u?u+' ':'')+s; }
+function signDays(n){ if(n==null) return '—'; return n>0?('+'+n+'d'):(n+'d'); }
+function sChip(s){ return s==='TK_Complete'?'<span class="chip c-done">Complete</span>':s==='TK_Active'?'<span class="chip c-ip">In Progress</span>':'<span class="chip c-ns">Not Started</span>'; }
+function rtBadge(t){ const k=relType(t); const cls=k==='SF'?'rt-sf':k==='FS'?'rt-fs':'rt-other'; return `<span class="rt ${cls}">${k}</span>`; }
+const FX=()=>STATE.fx.on?STATE.fx:null;
+
+/* ---------- file handling ---------- */
+function readFile(file,slot){
+  clearErr();
+  if(!/\.xer$/i.test(file.name)){ showErr(`"${file.name}" is not an .XER file.`); return; }
+  const rd=new FileReader();
+  rd.onerror=()=>showErr(`Could not read "${file.name}".`);
+  rd.onload=e=>{ try{
+      let txt; try{ txt=new TextDecoder('windows-1252').decode(e.target.result); }catch(_){ txt=new TextDecoder('iso-8859-1').decode(e.target.result); }
+      const p=parseXER(txt);
+      if(!p.tables.PROJECT||!p.tables.TASK||!p.tables.TASK.length){ showErr(`"${file.name}" contains no PROJECT/TASK data.`); return; }
+      const m=buildModel(p,file.name); STATE[slot]=m; STATE.current=STATE.B||STATE.A;
+      initFx(); if(!STATE.meta.subject) STATE.meta.subject=m.projName+' — Schedule Submittal';
+      STATE.selectedActivity=null; renderParse(); renderChip(slot,m); enableTabs(); show(STATE.activeTab);
+    }catch(err){ console.error(err); showErr(`Failed to parse "${file.name}": ${err.message}`); } };
+  rd.readAsArrayBuffer(file);
+}
+function initFx(){ const m=STATE.current; if(!m) return; STATE.fx.target=STATE.fx.target||m.currency.baseCode||'';
+  (m.costSources||[]).forEach(s=>{ if(STATE.fx.rates[s.key]==null) STATE.fx.rates[s.key]=1; }); }
+function showErr(x){ $('#errBox').innerHTML=`<div class="banner-err"><b>⚠ Import problem.</b> ${x}</div>`; }
+function clearErr(){ $('#errBox').innerHTML=''; }
+function renderChip(slot,m){
+  const d=$('#drop'+slot); d.classList.add('loaded');
+  const role=slot==='A'?'<span class="role-tag role-a">Baseline / Previous</span>':'<span class="role-tag role-b">Current update</span>';
+  d.innerHTML=`<div class="slot-label">Schedule ${slot}</div><div class="filechip"><div class="ic">XER</div>
+    <div><div class="fn">${m.fileName}</div><div class="meta">${m.projName} · DD ${fD(m.dataDate)} · ${fN(m.counts.activities)} act · ${fN(m.counts.rels)} rel</div>${role}</div>
+    <button class="rm" data-remove="${slot}">×</button></div>`;
+}
+function removeSlot(s){ STATE[s]=null; STATE.current=STATE.B||STATE.A; const d=$('#drop'+s); d.classList.remove('loaded');
+  d.innerHTML=s==='A'?`<div class="slot-label">Schedule A — Baseline / Previous update</div><div class="cloud">📂</div><div><b>Drag &amp; drop</b> an <span class="mono">.XER</span> file here</div><div class="hint">or</div><button class="pick" data-pick="A">Choose XER file</button>`
+    :`<div class="slot-label">Schedule B — Current update <span style="font-weight:400;color:var(--muted)">(optional → enables comparison)</span></div><div class="cloud">📂</div><div><b>Drag &amp; drop</b> a second <span class="mono">.XER</span> to compare</div><div class="hint">or</div><button class="pick" data-pick="B">Choose XER file</button>`;
+  if(!STATE.current){ $('#parseSummary').classList.add('hidden'); $$('.view').forEach(v=>v.classList.add('hidden')); $('#welcome').classList.remove('hidden'); }
+  else { renderParse(); show(STATE.activeTab); } enableTabs(); }
+function renderParse(){
+  const m=STATE.current; if(!m) return; const ps=$('#parseSummary'); ps.classList.remove('hidden');
+  const oe=openEnds(m), ra=relationshipAnalysis(m);
+  ps.innerHTML=`<div class="ps"><span class="k">Project</span><span class="v">${m.projName}</span></div>
+    <div class="ps"><span class="k">Data Date</span><span class="v">${fD(m.dataDate)}</span></div>
+    <div class="ps"><span class="k">Activities</span><span class="v">${fN(m.counts.activities)}</span></div>
+    <div class="ps"><span class="k">Relationships</span><span class="v">${fN(m.counts.rels)}</span></div>
+    <div class="ps"><span class="k">Open ends</span><span class="v" style="color:${oe.any.length?'var(--crit)':'var(--ahead)'}">${oe.any.length}</span></div>
+    <div class="ps"><span class="k">SF links</span><span class="v" style="color:${ra.counts.SF?'var(--crit)':'var(--ahead)'}">${ra.counts.SF}</span></div>
+    <div class="ps"><span class="k">Currency</span><span class="v">${m.currency.baseCode||'—'}</span></div>
+    <div class="ps"><span class="k">Mode</span><span class="v" style="color:${(STATE.A&&STATE.B)?'var(--warn)':'inherit'}">${(STATE.A&&STATE.B)?'Comparison':'Single'}</span></div>
+    <div class="ps" style="margin-left:auto"><span class="k">Reading</span><span class="v ok">✓ Loaded OK</span></div>`;
+}
+function enableTabs(){ const two=STATE.A&&STATE.B; $('#tabComparison').disabled=!two;
+  $('#tabComparison').innerHTML='Comparison'+(two?'<span class="dot"></span>':''); if(STATE.current) $('#welcome').classList.add('hidden'); }
+function show(tab){
+  if(!STATE.current) return; if(tab==='comparison'&&!(STATE.A&&STATE.B)) tab='exec'; STATE.activeTab=tab;
+  $$('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
+  $$('.view').forEach(v=>v.classList.add('hidden')); const v=$('#view-'+tab); v.classList.remove('hidden');
+  ({exec:renderExec,overview:renderOverview,health:renderHealth,logic:renderLogic,explorer:renderExplorer,
+    scurve:renderSCurve,gantt:renderGantt,lookahead:renderLookahead,critical:renderCritical,
+    comparison:renderComparison,report:renderReport}[tab]||function(){})(v);
+}
+
+/* ===================== EXECUTIVE SUMMARY ===================== */
+function renderExec(host){
+  const m=STATE.current, cmp=(STATE.A&&STATE.B)?compare(STATE.A,STATE.B):null;
+  const ex=execMetrics(m,STATE.critThreshold2,FX()), d=dcma14(m,{}), s=ex.summary;
+  const exB=cmp?execMetrics(STATE.A,STATE.critThreshold2,FX()):null;
+  host.innerHTML='';
+  const stage=el('div','exec-stage'), page=el('div','exec-page'); stage.appendChild(page); host.appendChild(stage);
+  page.appendChild(el('div','exh',`<div class="exh-left"><div class="exh-logo">P6</div><div>
+    <div class="exh-title">${m.projName} — Executive Schedule Summary</div>
+    <div class="exh-sub">Data Date <b>${fD(m.dataDate)}</b>${cmp?` &nbsp;<span class="exh-vs">vs ${fD(STATE.A.dataDate)}</span>`:''} · Prepared by Eng. Karim Tarek</div></div></div>
+    <div class="exh-right no-capture"><button class="mini-btn" id="exPng">🖼 Copy as image</button><button class="mini-btn primary" id="exPdf">📄 Export PDF</button></div>`));
+  const spiH=ex.spi==null?'':(ex.spi>=0.98?'good':ex.spi>=0.9?'warn':'bad');
+  const fv=s.finishVarianceDays, fH=fv==null?'':(fv>0?'bad':'good');
+  const strip=el('div','exec-kpis');
+  strip.appendChild(exk('% Complete',s.pctDurWeighted.toFixed(1)+'%','duration-weighted','good',cmp?dBadge(s.pctDurWeighted-exB.summary.pctDurWeighted,'pp',true):''));
+  strip.appendChild(exk('SPI'+(ex.spiBasis==='cost'?'':' (t)'),ex.spi!=null?ex.spi.toFixed(2):'—',ex.spiBasis+'-based',spiH,cmp&&exB.spi!=null?dBadge(ex.spi-exB.spi,'',true,2):''));
+  strip.appendChild(exk('Forecast Finish',fD(s.forecastFinish),`Baseline ${fD(s.mustFinish)}`,fH,fv!=null?`<div class="exk-delta ${fv>0?'d-bad':'d-good'}">${signDays(fv)} vs baseline</div>`:''));
+  strip.appendChild(exk('Critical Activities',fN(d.extras.critCount),'TF ≤ 0',d.extras.critCount>0?'warn':'good',''));
+  strip.appendChild(exk('Open Ends',fN(d.extras.openEnds.any.length),'missing pred/succ',d.extras.openEnds.any.length?'bad':'good',''));
+  strip.appendChild(exk('DCMA-14 Health',d.passed+'<small>/'+d.scored+'</small>','grade '+d.grade,d.passed>=12?'good':d.passed>=9?'warn':'bad',''));
+  strip.appendChild(exk('Days Remaining',ex.daysRemaining!=null?fN(ex.daysRemaining):'—','DD → forecast finish','',''));
+  page.appendChild(strip);
+  const g=el('div','exec-grid'); page.appendChild(g);
+  g.appendChild(exp(m.hasCost?'Progress S-Curve (cost)':'Progress S-Curve','Planned · Actual · Forecast','p-scurve','<canvas id="exScurve"></canvas>'));
+  g.appendChild(exp('Key Milestones','baseline → forecast','p-miles',milesHtml(ex.milestones)));
+  g.appendChild(exp('Critical Path Drivers','controlling the finish','p-crit',cpMini(m)));
+  g.appendChild(exp('Progress by Area (WBS)','lowest first','p-wbs',wbsBars(wbsRollup(m))));
+  page.appendChild(el('div','exec-foot',`<span>P6 Schedule Analysis Dashboard · Author: <b>Eng. Karim Tarek</b></span><span>${new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}</span>`));
+  fitExec(); drawExecSc(m);
+  $('#exPdf').addEventListener('click',()=>exportExec('pdf')); $('#exPng').addEventListener('click',()=>exportExec('png'));
+}
+function exk(l,v,s,h,x){ const e=el('div','exk'+(h?' h-'+h:'')); e.innerHTML=`<div class="exk-l">${l}</div><div class="exk-v">${v}</div><div class="exk-s">${s||''}</div>${x||''}`; return e; }
+function dBadge(v,u,gu,dec){ if(v==null||isNaN(v))return''; const r=dec?v.toFixed(dec):Math.round(v);
+  if(Math.abs(v)<(dec?0.005:0.5)) return `<div class="exk-delta">▬ no change</div>`;
+  const up=v>0,good=gu?up:!up; return `<div class="exk-delta ${good?'d-good':'d-bad'}">${up?'▲':'▼'} ${up?'+':''}${r}${u||''}</div>`; }
+function exp(t,s,c,b){ const p=el('div','exp '+c); p.innerHTML=`<div class="exp-h"><span class="exp-t">${t}</span><span class="exp-s">${s||''}</span></div><div class="exp-b">${b||''}</div>`; return p; }
+function milesHtml(ms){ if(!ms.length) return '<div class="exp-empty">No milestones.</div>';
+  const dot={achieved:'#1e8e5a','on-track':'#2e78c7','at-risk':'#c77700',missed:'#c0392b'},lbl={achieved:'Achieved','on-track':'On track','at-risk':'At risk',missed:'Missed'};
+  return `<div class="mile-list">${ms.slice(0,9).map(mi=>{const v=mi.variance,vc=v>0?'pos':v<0?'neg':'',vt=v==null?'—':(v>0?'+'+v+'d':v+'d');
+    return `<div class="mile-row"><span class="mile-dot" style="background:${dot[mi.status]}"></span><span class="mile-nm" title="${mi.name}">${mi.name}</span><span class="mile-base">${fD(mi.baseline)}</span><span class="mile-fore">${fD(mi.forecast)}</span><span class="mile-var ${vc}">${vt}</span><span class="mile-st" style="color:${dot[mi.status]}">${lbl[mi.status]}</span></div>`;}).join('')}</div>`; }
+function cpMini(m){ const r=tracePath(m).filter(t=>!t.isMilestone).slice(0,8);
+  if(!r.length) return '<div class="exp-empty">No critical path found.</div>';
+  return `<table class="mini-tbl"><thead><tr><th>ID</th><th>Activity</th><th class="num">Dur</th><th>Finish</th><th class="num">TF</th></tr></thead><tbody>${
+   r.map(t=>`<tr><td class="mono">${t.code}</td><td class="cp-nm" title="${t.name}">${t.name}</td><td class="num">${fN(t.dur_days,0)}</td><td>${fD(t.bestFinish)}</td><td class="num ${t.tf_days<0?'tf-neg':t.tf_days<=0?'pos':''}">${fN(t.tf_days,0)}</td></tr>`).join('')}</tbody></table>`; }
+function wbsBars(l){ if(!l.length) return '<div class="exp-empty">No WBS.</div>';
+  return `<div class="wbs-bars">${l.slice(0,7).map(w=>{const c=w.pct<25?'#c0392b':w.pct<60?'#c77700':'#1e8e5a';
+   return `<div class="wbs-row"><span class="wbs-nm" title="${w.name}">${w.name}</span><div class="wbs-track"><span class="wbs-fill" style="width:${Math.max(2,w.pct)}%;background:${c}"></span></div><span class="wbs-pct">${w.pct.toFixed(0)}%</span></div>`;}).join('')}</div>`; }
+function fitExec(){ const st=$('.exec-stage'),p=$('.exec-page'); if(!st||!p)return;
+  const sc=Math.min((st.clientWidth-4)/1400,Math.max(480,window.innerHeight-st.getBoundingClientRect().top-24)/990,1.05);
+  p.style.transform=`scale(${sc})`; st.style.height=(990*sc+8)+'px'; }
+function drawExecSc(m){ const c=$('#exScurve'); if(!c||!window.Chart)return;
+  const basis=m.hasCost?'cost':'count', sc=buildSCurve(m,basis,'month',FX()); if(!sc)return; destroy('exScurve');
+  const labels=sc.buckets.map(b=>MON[b.getMonth()]+' '+String(b.getFullYear()).slice(2));
+  const di=sc.dataDate?sc.buckets.findIndex(b=>b>=sc.dataDate):-1;
+  STATE.charts.exScurve=new Chart(c,{type:'line',data:{labels,datasets:[
+    {label:'Planned',data:sc.planned,borderColor:'#5b6b7f',backgroundColor:'rgba(91,107,127,.08)',fill:'+1',tension:.25,pointRadius:0,borderWidth:2},
+    {label:'Forecast',data:sc.forecast,borderColor:'#c77700',fill:false,tension:.25,pointRadius:0,borderWidth:2,borderDash:[6,3]},
+    {label:'Actual',data:sc.actual,borderColor:'#1e8e5a',fill:false,tension:.25,pointRadius:0,borderWidth:3}]},
+    options:{maintainAspectRatio:false,animation:false,interaction:{mode:'index',intersect:false},
+    plugins:{legend:{position:'bottom',labels:{boxWidth:12,font:{size:10}}},tooltip:{callbacks:{label:x=>x.dataset.label+': '+(basis==='cost'?money(x.parsed.y):fN(x.parsed.y)+' act')}}},
+    scales:{y:{beginAtZero:true,ticks:{font:{size:9},callback:v=>basis==='cost'?money(v):v}},x:{ticks:{font:{size:9},maxRotation:0,autoSkip:true,maxTicksLimit:10}}}},
+    plugins:[{id:'dd',afterDraw(ch){ if(di<0)return; const x=ch.scales.x.getPixelForValue(di),{top,bottom}=ch.chartArea,g=ch.ctx;
+      g.save();g.strokeStyle='#c0392b';g.lineWidth=1.5;g.setLineDash([4,3]);g.beginPath();g.moveTo(x,top);g.lineTo(x,bottom);g.stroke();
+      g.setLineDash([]);g.fillStyle='#c0392b';g.font='bold 9px Segoe UI';g.fillText('Data date',x+3,top+10);g.restore(); }}]});
+}
+function exportExec(kind){
+  const page=$('.exec-page'); if(!page)return; const m=STATE.current;
+  const bp=$('#exPdf'),bi=$('#exPng'); const op=bp.textContent,oi=bi.textContent; bp.textContent='…';bi.textContent='…';
+  const pt=page.style.transform; page.style.transform='none'; document.body.classList.add('capturing');
+  const fin=()=>{page.style.transform=pt;document.body.classList.remove('capturing');bp.textContent=op;bi.textContent=oi;};
+  if(!window.html2canvas){ alert('Export libraries still loading.'); fin(); return; }
+  html2canvas(page,{scale:2,useCORS:true,backgroundColor:'#fff',width:1400,height:990,windowWidth:1400,windowHeight:990}).then(cv=>{
+    if(kind==='png'){ cv.toBlob(b=>{ if(navigator.clipboard&&window.ClipboardItem)
+        navigator.clipboard.write([new ClipboardItem({'image/png':b})]).then(()=>{bi.textContent='✓ Copied';setTimeout(()=>bi.textContent=oi,1500);}).catch(()=>dl(b,safe(m)+'_Exec.png'));
+        else dl(b,safe(m)+'_Exec.png'); fin(); },'image/png'); }
+    else { const img=cv.toDataURL('image/png'),{jsPDF}=window.jspdf||{};
+      if(!jsPDF){ fin(); return; } const pdf=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+      const pw=pdf.internal.pageSize.getWidth(),ph=pdf.internal.pageSize.getHeight(),ar=1400/990;
+      let iw=pw,ih=pw/ar; if(ih>ph){ih=ph;iw=ph*ar;}
+      pdf.setProperties({title:m.projName+' — Executive Summary',author:'Eng. Karim Tarek'});
+      pdf.addImage(img,'PNG',(pw-iw)/2,(ph-ih)/2,iw,ih,undefined,'FAST'); pdf.save(safe(m)+'_Executive_Summary.pdf'); fin(); }
+  }).catch(e=>{console.error(e);alert('Export failed: '+e.message);fin();});
+}
+function safe(m){ return (m&&m.projName?m.projName:'Project').replace(/[^A-Za-z0-9_-]+/g,'_'); }
+function dl(b,n){ const a=el('a'); a.href=URL.createObjectURL(b); a.download=n; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); }
+
+/* ===================== OVERVIEW ===================== */
+function renderOverview(host){
+  const m=STATE.current,s=summarize(m),d=dcma14(m,{});
+  const neg=m.tasks.filter(t=>!t.isLOE&&t.tf_days<0).length, fv=s.finishVarianceDays;
+  host.innerHTML=''; const g=el('div','kpi-grid');
+  g.appendChild(kpi('Total Activities',fN(s.total),`${fN(s.notStarted)} NS · ${fN(s.inProgress)} IP · ${fN(s.complete)} done`));
+  g.appendChild(kpiSplit(s));
+  g.appendChild(kpiBar('Overall % Complete',s.pctDurWeighted.toFixed(1)+'%',s.physAvg!=null?`Physical avg ${s.physAvg.toFixed(1)}%`:'Duration-weighted',s.pctDurWeighted,'good'));
+  g.appendChild(kpi('Data Date',fD(s.dataDate),'Schedule status as of'));
+  g.appendChild(kpi('Forecast Finish',fD(s.forecastFinish),`Must-finish ${fD(s.mustFinish)}`,fv==null?'':(fv>0?'crit':'good'),
+    fv!=null?`<div class="sub"><b class="${fv>0?'pos':'neg'}">${signDays(fv)}</b> vs plan</div>`:''));
+  g.appendChild(kpi('Critical Path Length',fN(d.extras.cpLenDays)+'<small> cal-days</small>',`${fN(d.extras.critCount)} activities at TF ≤ 0`,'crit'));
+  g.appendChild(kpi('Open / Negative Float',fN(neg)+'<small> act</small>',neg?'Cannot meet imposed dates':'No negative float',neg?'crit':'good'));
+  if(m.hasCost) g.appendChild(kpi('Cost Budget (BAC)',money(projectCostFx(m,FX())),STATE.fx.on?`converted to ${STATE.fx.target}`:`as stored (${m.currency.baseCode||''})`));
+  const gc=el('div','kpi'+(d.grade==='A'||d.grade==='B'?' good':d.grade==='F'||d.grade==='D'?' crit':' warn'));
+  gc.innerHTML=`<div class="k">Schedule Quality (DCMA-14)</div><div style="display:flex;align-items:center;gap:12px;margin-top:6px">
+    <div class="grade g${d.grade}"><span class="g">${d.grade}</span><span class="s">${d.passed}/${d.scored}</span></div>
+    <div class="sub">${d.passed} of ${d.scored} passed.<br/><a href="#" data-goto="health" style="font-weight:600">Full assessment →</a></div></div>`;
+  g.appendChild(gc); host.appendChild(g);
+  const two=el('div','two-col');
+  two.appendChild(panel('Activity Status Distribution','','<canvas id="statusDonut" height="220"></canvas>'));
+  two.appendChild(panel('Progress by WBS','Duration-weighted % complete','<div id="wbsRoll"></div>'));
+  host.appendChild(two);
+  const ctx=$('#statusDonut'); if(ctx&&window.Chart){ destroy('statusDonut');
+    STATE.charts.statusDonut=new Chart(ctx,{type:'doughnut',data:{labels:['Not Started','In Progress','Complete'],
+      datasets:[{data:[s.notStarted,s.inProgress,s.complete],backgroundColor:['#94a3b8','#2e78c7','#1e8e5a'],borderWidth:2,borderColor:'#fff'}]},
+      options:{plugins:{legend:{position:'bottom'}},cutout:'62%'}}); }
+  const wr=$('#wbsRoll'); wr.innerHTML=wbsRollup(m).map(w=>`<div style="margin-bottom:11px">
+    <div style="display:flex;justify-content:space-between;font-size:12.5px"><b style="color:var(--navy)">${w.name}</b><span class="mono">${w.pct.toFixed(1)}% · ${w.n} act</span></div>
+    <div class="bar" style="height:9px;background:var(--line);border-radius:5px;overflow:hidden;margin-top:4px"><span style="display:block;height:100%;width:${w.pct}%;background:linear-gradient(90deg,var(--navy2),var(--navy3))"></span></div></div>`).join('')||'<div class="section-note">No WBS.</div>';
+  host.querySelectorAll('[data-goto]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();show(a.dataset.goto);}));
+}
+function kpi(k,v,s,c,x){ const e=el('div','kpi'+(c?' '+c:'')); e.innerHTML=`<div class="k">${k}</div><div class="v">${v}</div><div class="sub">${s||''}</div>${x||''}`; return e; }
+function kpiBar(k,v,s,p,c){ const e=el('div','kpi'+(c?' '+c:'')); e.innerHTML=`<div class="k">${k}</div><div class="v">${v}</div><div class="sub">${s||''}</div><div class="bar"><span style="width:${Math.min(100,p)}%;background:${c==='good'?'var(--ahead)':'var(--navy3)'}"></span></div>`; return e; }
+function kpiSplit(s){ const e=el('div','kpi'),t=s.total||1,a=s.notStarted/t*100,b=s.inProgress/t*100,c=s.complete/t*100;
+  e.innerHTML=`<div class="k">Status Mix</div><div class="status-split"><span style="width:${a}%;background:var(--ns)">${a>12?Math.round(a)+'%':''}</span><span style="width:${b}%;background:var(--ip)">${b>12?Math.round(b)+'%':''}</span><span style="width:${c}%;background:var(--done)">${c>12?Math.round(c)+'%':''}</span></div>
+  <div class="sub" style="margin-top:8px"><span style="color:var(--ns)">■</span> Not started <span style="color:var(--ip)">■</span> In progress <span style="color:var(--done)">■</span> Complete</div>`; return e; }
+
+/* ===================== HEALTH ===================== */
+function renderHealth(host){
+  const m=STATE.current,d=dcma14(m,{}); host.innerHTML='';
+  const p=panel('DCMA 14-Point Schedule Assessment',`Grade <b>${d.grade}</b> — ${d.passed} of ${d.scored} passed`,'',true);
+  p.querySelector('.right').appendChild(btn('Export CSV',()=>csv('dcma14.csv',[['#','Check','Result','Threshold','Verdict','Explanation']].concat(d.checks.map(c=>[c.n,c.name,c.value,c.threshold,c.pass===null?'INFO':(c.pass?'PASS':'FAIL'),c.detail])))));
+  const bd=el('div','grade g'+d.grade); bd.innerHTML=`<span class="g">${d.grade}</span><span class="s">${d.passed}/${d.scored}</span>`; p.querySelector('.right').prepend(bd);
+  const b=el('div');
+  d.checks.forEach(c=>{ const r=el('div','dcma-row');
+    r.innerHTML=`<div class="n">${c.n}</div><div><div class="nm">${c.name}</div></div><div class="val">${c.value}</div><div class="thr">Threshold: ${c.threshold}</div>
+    ${c.pass===null?'<div class="verdict v-info">INFO</div>':(c.pass?'<div class="verdict v-pass">PASS</div>':'<div class="verdict v-fail">FAIL</div>')}<div class="dt">${c.detail}</div>`; b.appendChild(r); });
+  p.querySelector('.pb').appendChild(b); host.appendChild(p);
+}
+
+/* ===================== LOGIC & RELATIONSHIPS (NEW) ===================== */
+function renderLogic(host){
+  const m=STATE.current, ra=relationshipAnalysis(m), oe=openEnds(m); host.innerHTML='';
+  // summary cards
+  const g=el('div','kpi-grid');
+  g.appendChild(kpi('Total Relationships',fN(ra.total),`FS ${ra.counts.FS} · SS ${ra.counts.SS} · FF ${ra.counts.FF} · SF ${ra.counts.SF}`));
+  g.appendChild(kpiBar('FS Logic',ra.fsPct.toFixed(1)+'%','DCMA target ≥ 90%',ra.fsPct,ra.fsPct>=90?'good':'warn'));
+  g.appendChild(kpi('Start-to-Finish (SF)',fN(ra.counts.SF),ra.counts.SF?'Invalid logic — must be removed':'None — good',ra.counts.SF?'crit':'good'));
+  g.appendChild(kpi('Open Ends',fN(oe.any.length),`${oe.noPred.length} no predecessor · ${oe.noSucc.length} no successor`,oe.any.length?'crit':'good'));
+  g.appendChild(kpi('Leads (negative lag)',fN(ra.leads.length),ra.leads.length?'Must be removed':'None',ra.leads.length?'crit':'good'));
+  g.appendChild(kpi('Lags',fN(ra.lags.length),`${ra.lagPct.toFixed(1)}% of links · total ${fN(ra.lagTotalDays,0)}d`,ra.lagPct>5?'warn':'good'));
+  g.appendChild(kpi('Driven only by SS/FF',fN(ra.onlySSFF.length),'No FS driver',ra.onlySSFF.length?'warn':'good'));
+  g.appendChild(kpi('Redundant ties',fN(ra.redundant.length),'Duplicate pred→succ',ra.redundant.length?'warn':'good'));
+  host.appendChild(g);
+
+  // relationship type breakdown chart + table
+  const two=el('div','two-col');
+  two.appendChild(panel('Relationship Type Mix','SF highlighted as invalid','<canvas id="relDonut" height="200"></canvas>'));
+  const legit=oe.startBookend&&oe.finishBookend?`<div class="section-note" style="margin:0 0 8px">Excluded as legitimate bookends: <b>${oe.startBookend.code}</b> (project start) and <b>${oe.finishBookend.code}</b> (project finish).</div>`:'';
+  two.appendChild(panel('Open Ends — exact activities',`${oe.any.length} activities with broken logic`,legit+'<div id="oeTable"></div>',true));
+  host.appendChild(two);
+  const donut=$('#relDonut'); if(donut&&window.Chart){ destroy('relDonut');
+    STATE.charts.relDonut=new Chart(donut,{type:'doughnut',data:{labels:['FS (correct)','SS','FF','SF (invalid)'],
+      datasets:[{data:[ra.counts.FS,ra.counts.SS,ra.counts.FF,ra.counts.SF],backgroundColor:['#1e8e5a','#2e78c7','#c77700','#c0392b'],borderWidth:2,borderColor:'#fff'}]},
+      options:{plugins:{legend:{position:'bottom'}},cutout:'58%'}}); }
+  // open ends table
+  const oeRows=[...oe.noPred.map(t=>({t,issue:'No predecessor'})),...oe.noSucc.map(t=>({t,issue:'No successor'}))];
+  const oep=$('#oeTable').closest('.panel');
+  oep.querySelector('.right').appendChild(btn('Export CSV',()=>csv('open-ends.csv',[['ID','Activity','WBS','Issue','Status','TF (d)']].concat(
+    oeRows.map(r=>[r.t.code,r.t.name,m.wbsById[r.t.wbs_id]?m.wbsById[r.t.wbs_id].name:'',r.issue,statusText(r.t.status),fN(r.t.tf_days,1)])))));
+  tbl($('#oeTable'),{rows:oeRows,pageSize:15,sortKey:'code',cols:[
+    {k:'code',t:'ID',get:r=>`<a href="#" class="lnk" data-act="${r.t.id}"><span class="mono">${r.t.code}</span></a>`,val:r=>r.t.code},
+    {k:'name',t:'Activity',get:r=>r.t.name,val:r=>r.t.name},
+    {k:'issue',t:'Issue',get:r=>`<span class="chip c-crit">${r.issue}</span>`,val:r=>r.issue},
+    {k:'st',t:'Status',get:r=>sChip(r.t.status),val:r=>r.t.status},
+    {k:'tf',t:'TF (d)',cls:'num',get:r=>fN(r.t.tf_days,0),val:r=>r.t.tf_days}]});
+
+  // SF + leads register
+  if(ra.counts.SF||ra.leads.length){
+    const p=panel('Invalid Logic Register','Start-to-Finish links and negative lags — flagged as errors','<div id="sfTable"></div>',true);
+    p.querySelector('.right').appendChild(btn('Export CSV',()=>csv('invalid-logic.csv',[['Finding','Predecessor','Successor','Type','Lag (d)']].concat(
+      [...ra.sf.map(r=>['Start-to-Finish link',r.pred_code,r.succ_code,'SF',fN(r.lag_days,1)]),
+       ...ra.leads.map(r=>['Negative lag (lead)',r.pred_code,r.succ_code,relType(r.type),fN(r.lag_days,1)])]))));
+    host.appendChild(p);
+    const rows=[...ra.sf.map(r=>({r,find:'Start-to-Finish link',sev:'crit'})),...ra.leads.map(r=>({r,find:'Negative lag (lead)',sev:'crit'}))];
+    tbl($('#sfTable'),{rows,pageSize:20,sortKey:'find',cols:[
+      {k:'find',t:'Finding',get:x=>`<span class="chip c-crit">${x.find}</span>`,val:x=>x.find},
+      {k:'pred',t:'Predecessor',get:x=>`<a href="#" class="lnk" data-code="${x.r.pred_code}"><span class="mono">${x.r.pred_code}</span></a> <span style="color:var(--muted)">${x.r.pred_name||''}</span>`,val:x=>x.r.pred_code},
+      {k:'succ',t:'Successor',get:x=>`<a href="#" class="lnk" data-code="${x.r.succ_code}"><span class="mono">${x.r.succ_code}</span></a> <span style="color:var(--muted)">${x.r.succ_name||''}</span>`,val:x=>x.r.succ_code},
+      {k:'type',t:'Type',get:x=>rtBadge(x.r.type),val:x=>relType(x.r.type)},
+      {k:'lag',t:'Lag (d)',cls:'num',get:x=>`<span class="${x.r.lag_days<0?'tf-neg':''}">${fN(x.r.lag_days,0)}</span>`,val:x=>x.r.lag_days},
+      {k:'act',t:'Required action',get:()=>'Remove and re-model with FS/SS logic'}]});
+  }
+  // per-activity relationship counts
+  const p2=panel('Relationship Count by Activity','FS / SS / FF / SF as predecessor and successor · issues flagged',
+    `<div class="filterbar no-print"><input type="text" id="arSearch" placeholder="Search activity…"/>
+      <label><input type="checkbox" id="arIssues"/> Only activities with issues</label>
+      <label><input type="checkbox" id="arSF"/> Only SF-linked</label></div><div id="arTable"></div>`,true);
+  p2.querySelector('.right').appendChild(btn('Export CSV',()=>{ const R=activityRelTable(m);
+    csv('activity-relationships.csv',[['ID','Activity','Preds','Succs','Pred FS','Pred SS','Pred FF','Pred SF','Succ FS','Succ SS','Succ FF','Succ SF','TF (d)','Issues']].concat(
+      R.map(r=>[r.code,r.name,r.nPred,r.nSucc,r.pred.FS,r.pred.SS,r.pred.FF,r.pred.SF,r.succ.FS,r.succ.SS,r.succ.FF,r.succ.SF,fN(r.tf,1),r.issues.join('; ')]))); }));
+  host.appendChild(p2);
+  const all=activityRelTable(m);
+  const draw=()=>{ const q=($('#arSearch').value||'').toLowerCase(); let r=all.filter(x=>(x.code+' '+x.name).toLowerCase().includes(q));
+    if($('#arIssues').checked) r=r.filter(x=>x.issues.length); if($('#arSF').checked) r=r.filter(x=>x.sf>0);
+    tbl($('#arTable'),{rows:r,pageSize:25,sortKey:'code',cols:[
+      {k:'code',t:'ID',get:x=>`<a href="#" class="lnk" data-act="${x.t.id}"><span class="mono">${x.code}</span></a>`,val:x=>x.code},
+      {k:'name',t:'Activity',get:x=>x.name,val:x=>x.name},
+      {k:'np',t:'Preds',cls:'num',get:x=>x.nPred===0?'<span class="pos">0</span>':x.nPred,val:x=>x.nPred},
+      {k:'ns',t:'Succs',cls:'num',get:x=>x.nSucc===0?'<span class="pos">0</span>':x.nSucc,val:x=>x.nSucc},
+      {k:'pmix',t:'Predecessor types',get:x=>mix(x.pred),val:x=>x.pred.FS},
+      {k:'smix',t:'Successor types',get:x=>mix(x.succ),val:x=>x.succ.FS},
+      {k:'tf',t:'TF (d)',cls:'num',get:x=>`<span class="${x.tf<0?'tf-neg':x.tf<=0?'pos':''}">${fN(x.tf,0)}</span>`,val:x=>x.tf},
+      {k:'iss',t:'Issues',get:x=>x.issues.length?x.issues.map(i=>`<span class="chip ${i==='SF link'||i.startsWith('Open')||i==='Negative lag'?'c-crit':'c-ip'}">${i}</span>`).join(' '):'—',val:x=>x.issues.length}]});
+  };
+  $('#arSearch').addEventListener('input',draw); $('#arIssues').addEventListener('change',draw); $('#arSF').addEventListener('change',draw); draw();
+  wireActivityLinks(host);
+}
+function mix(o){ const out=[]; ['FS','SS','FF','SF'].forEach(k=>{ if(o[k]) out.push(`<span class="rt ${k==='SF'?'rt-sf':k==='FS'?'rt-fs':'rt-other'}">${k}×${o[k]}</span>`); }); return out.join(' ')||'<span style="color:var(--muted)">—</span>'; }
+function wireActivityLinks(root){
+  root.querySelectorAll('a.lnk').forEach(a=>a.addEventListener('click',e=>{ e.preventDefault();
+    const m=STATE.current; let id=a.dataset.act;
+    if(!id&&a.dataset.code){ const t=m.taskByCode[a.dataset.code]; id=t?t.id:null; }
+    if(id){ STATE.selectedActivity=id; show('explorer'); } }));
+}
+
+/* ===================== ACTIVITY EXPLORER (NEW) ===================== */
+function renderExplorer(host){
+  const m=STATE.current; host.innerHTML='';
+  const acts=m.tasks.filter(t=>!t.isLOE).sort((a,b)=>a.code.localeCompare(b.code));
+  if(!STATE.selectedActivity&&acts.length){ const cp=tracePath(m); STATE.selectedActivity=(cp.length?cp[Math.floor(cp.length/2)]:acts[0]).id; }
+  const p=panel('Activity Explorer','Select any activity to trace its full driving path, logic and dates',
+    `<div class="filterbar no-print">
+      <input type="text" id="axSearch" placeholder="Search by ID or name…" style="min-width:280px"/>
+      <select id="axSelect" style="min-width:420px"></select>
+      <label><input type="checkbox" id="axCritOnly"/> Critical only</label>
+    </div><div id="axBody"></div>`,true);
+  host.appendChild(p);
+  const sel=$('#axSelect');
+  const fill=()=>{ const q=($('#axSearch').value||'').toLowerCase(); const co=$('#axCritOnly').checked;
+    let list=acts.filter(t=>(t.code+' '+t.name).toLowerCase().includes(q)); if(co) list=list.filter(t=>t.tf_days<=0.0001);
+    sel.innerHTML=list.slice(0,3000).map(t=>`<option value="${t.id}" ${t.id===STATE.selectedActivity?'selected':''}>${t.code} — ${t.name}${t.tf_days<=0?'  ★critical':''}</option>`).join('');
+    if(list.length&&!list.some(t=>t.id===STATE.selectedActivity)){ STATE.selectedActivity=list[0].id; sel.value=list[0].id; } };
+  fill(); drawPath($('#axBody'),m,STATE.selectedActivity);
+  $('#axSearch').addEventListener('input',()=>{fill();drawPath($('#axBody'),m,STATE.selectedActivity);});
+  $('#axCritOnly').addEventListener('change',()=>{fill();drawPath($('#axBody'),m,STATE.selectedActivity);});
+  sel.addEventListener('change',()=>{ STATE.selectedActivity=sel.value; drawPath($('#axBody'),m,STATE.selectedActivity); });
+  p.querySelector('.right').appendChild(btn('Export path CSV',()=>{
+    const P=activityPath(m,STATE.selectedActivity); if(!P) return;
+    const rows=[['Position','ID','Activity','Type','Status','Dur (d)','Start','Finish','TF (d)','Link to next']];
+    P.back.forEach((x,i)=>rows.push(['Predecessor '+(P.back.length-i),x.task.code,x.task.name,x.task.type,statusText(x.task.status),fN(x.task.dur_days,1),fD(x.task.bestStart),fD(x.task.bestFinish),fN(x.task.tf_days,1),relType(x.relToNext.type)+(x.relToNext.lag_days?' '+fN(x.relToNext.lag_days,0)+'d':'')]));
+    rows.push(['SELECTED',P.task.code,P.task.name,P.task.type,statusText(P.task.status),fN(P.task.dur_days,1),fD(P.task.bestStart),fD(P.task.bestFinish),fN(P.task.tf_days,1),'']);
+    P.fwd.forEach((x,i)=>rows.push(['Successor '+(i+1),x.task.code,x.task.name,x.task.type,statusText(x.task.status),fN(x.task.dur_days,1),fD(x.task.bestStart),fD(x.task.bestFinish),fN(x.task.tf_days,1),relType(x.relFromPrev.type)]));
+    csv('activity-path-'+P.task.code+'.csv',rows); }));
+}
+function drawPath(host,m,id){
+  const P=activityPath(m,id); if(!P){ host.innerHTML='<div class="empty-state">Activity not found.</div>'; return; }
+  const t=P.task;
+  const stat=[['Activity ID',t.code],['Name',t.name],['WBS',m.wbsPath(t.wbs_id)],['Type',t.type.replace('TT_','')],
+    ['Status',statusText(t.status)],['Original duration',fN(t.dur_days,1)+' d'],['Remaining',fN(t.rem_days,1)+' d'],
+    ['% complete',fN(t.pct,1)+'%'],['Start',fD(t.bestStart)],['Finish',fD(t.bestFinish)],
+    ['Total float',fN(t.tf_days,1)+' d'],['Free float',fN(t.ff_days,1)+' d'],
+    ['Constraint',t.cstr_type?(t.cstr_type+' '+fD(t.cstr_date)):'None'],['Calendar',(m.calById[t.clndr_id]||{}).name||'—'],
+    ['Predecessors',String(t.preds.length)],['Successors',String(t.succs.length)]];
+  const flags=[]; if(t.preds.length===0)flags.push('Open start (no predecessor)'); if(t.succs.length===0)flags.push('Open finish (no successor)');
+  if(t.preds.some(r=>relType(r.type)==='SF')||t.succs.some(r=>relType(r.type)==='SF'))flags.push('Start-to-Finish link');
+  if(t.preds.length&&!t.preds.some(r=>relType(r.type)==='FS'))flags.push('No FS driver');
+  if(t.preds.some(r=>r.lag_hr<0)||t.succs.some(r=>r.lag_hr<0))flags.push('Negative lag');
+  if(t.cstr_type)flags.push('Constrained');
+  if(t.tf_days<0)flags.push('Negative float');
+
+  const chainRow=(x,pos,rel,cur)=>{
+    const T=x, crit=T.tf_days<=0.0001;
+    return `<div class="pth-row ${cur?'pth-cur':''}">
+      <div class="pth-pos">${pos}</div>
+      <div class="pth-bar ${crit?'crit':''}"></div>
+      <div class="pth-main"><div class="pth-code">${cur?'▶ ':''}<a href="#" class="lnk" data-act="${T.id}"><span class="mono">${T.code}</span></a> ${sChip(T.status)}${crit?' <span class="chip c-crit">Critical</span>':''}</div>
+        <div class="pth-name">${T.name}</div></div>
+      <div class="pth-dates">${fD(T.bestStart)} → ${fD(T.bestFinish)}</div>
+      <div class="pth-num">${fN(T.dur_days,0)}d</div>
+      <div class="pth-num ${T.tf_days<0?'tf-neg':T.tf_days<=0?'pos':''}">TF ${fN(T.tf_days,0)}d</div>
+      <div class="pth-link">${rel?rtBadge(rel.type)+(rel.lag_days?` <span class="lag">${rel.lag_days>0?'+':''}${fN(rel.lag_days,0)}d</span>`:''):''}</div></div>`;
+  };
+  let chain='';
+  P.back.forEach((x,i)=>{ chain+=chainRow(x.task,'P'+(P.back.length-i),x.relToNext,false); });
+  chain+=chainRow(t,'★',null,true);
+  P.fwd.forEach((x,i)=>{ chain+=chainRow(x.task,'S'+(i+1),x.relFromPrev,false); });
+
+  host.innerHTML=`
+   <div class="two-col" style="margin-bottom:16px">
+     <div class="panel" style="margin:0"><div class="ph"><h3>Activity Detail</h3></div><div class="pb">
+       <table class="grid det"><tbody>${stat.map(r=>`<tr><td style="width:42%;color:var(--muted)">${r[0]}</td><td><b>${r[1]}</b></td></tr>`).join('')}</tbody></table>
+       ${flags.length?`<div class="banner-warn" style="margin-top:10px"><b>Flags:</b> ${flags.map(f=>`<span class="chip c-crit">${f}</span>`).join(' ')}</div>`:'<div class="banner-info" style="margin-top:10px">No logic defects detected on this activity.</div>'}
+     </div></div>
+     <div class="panel" style="margin:0"><div class="ph"><h3>Direct Logic</h3><span class="sub">immediate predecessors &amp; successors</span></div><div class="pb">
+       <h4 class="lg">Predecessors (${P.allPreds.length})</h4>
+       ${P.allPreds.length?`<table class="grid sm"><thead><tr><th>ID</th><th>Activity</th><th>Type</th><th class="num">Lag</th><th class="num">TF</th></tr></thead><tbody>
+         ${P.allPreds.map(x=>`<tr><td><a href="#" class="lnk" data-act="${x.task.id}"><span class="mono">${x.task.code}</span></a></td><td>${x.task.name}</td><td>${rtBadge(x.rel.type)}</td><td class="num ${x.rel.lag_days<0?'tf-neg':''}">${fN(x.rel.lag_days,0)}d</td><td class="num ${x.task.tf_days<=0?'pos':''}">${fN(x.task.tf_days,0)}</td></tr>`).join('')}
+         </tbody></table>`:'<div class="section-note">None — <b style="color:var(--crit)">open start</b>.</div>'}
+       <h4 class="lg" style="margin-top:14px">Successors (${P.allSuccs.length})</h4>
+       ${P.allSuccs.length?`<table class="grid sm"><thead><tr><th>ID</th><th>Activity</th><th>Type</th><th class="num">Lag</th><th class="num">TF</th></tr></thead><tbody>
+         ${P.allSuccs.map(x=>`<tr><td><a href="#" class="lnk" data-act="${x.task.id}"><span class="mono">${x.task.code}</span></a></td><td>${x.task.name}</td><td>${rtBadge(x.rel.type)}</td><td class="num ${x.rel.lag_days<0?'tf-neg':''}">${fN(x.rel.lag_days,0)}d</td><td class="num ${x.task.tf_days<=0?'pos':''}">${fN(x.task.tf_days,0)}</td></tr>`).join('')}
+         </tbody></table>`:'<div class="section-note">None — <b style="color:var(--crit)">open finish</b>.</div>'}
+     </div></div>
+   </div>
+   <div class="panel"><div class="ph"><h3>Full Driving Path</h3>
+     <span class="sub">${P.back.length} driving predecessors → this activity → ${P.fwd.length} driven successors · ${P.pathCount} activities · ${P.chainLengthDays!=null?P.chainLengthDays+' calendar days':'—'}${P.isCritical?' · on the critical path':''}</span></div>
+     <div class="pb"><div class="pth">${chain}</div></div></div>`;
+  wireActivityLinks(host);
+}
+
+/* ===================== S-CURVES ===================== */
+function renderSCurve(host){
+  const m=STATE.current; host.innerHTML='';
+  const p=panel('S-Curve — Planned vs Actual vs Forecast','',
+    `<div class="gantt-tools no-print"><label>Basis: <select id="scBasis"><option value="count">Activity count</option><option value="cost" ${m.hasCost?'':'disabled'} ${m.hasCost?'selected':''}>Cost / effort</option></select></label>
+     <label>Granularity: <select id="scGran"><option value="month">Monthly</option><option value="week">Weekly</option></select></label>
+     <div class="legend" style="margin-left:auto"><span><span class="sw" style="background:#5b6b7f"></span>Planned</span><span><span class="sw" style="background:#1e8e5a"></span>Actual</span><span><span class="sw" style="background:#c77700"></span>Forecast</span></div>
+     </div><canvas id="scCanvas" height="120"></canvas><div id="scInfo"></div>`,true);
+  p.querySelector('.right').appendChild(btn('Export PNG',()=>pngOf('scCanvas','s-curve.png'))); host.appendChild(p);
+  if(m.hasCost) host.appendChild(fxPanel(m));
+  const d=()=>drawSc(m,$('#scBasis').value,$('#scGran').value);
+  $('#scBasis').addEventListener('change',d); $('#scGran').addEventListener('change',d); d();
+}
+function fxPanel(m){
+  const p=el('div','panel'); const ccy=m.currency.baseCode||'unstated';
+  const rows=(m.costSources||[]).map(s=>{ const r=STATE.fx.rates[s.key]!=null?STATE.fx.rates[s.key]:1;
+    return `<tr><td>${s.label}</td><td>${s.currencyHint?`<span class="chip c-ip">${s.currencyHint}?</span>`:'<span style="color:var(--muted)">—</span>'}</td>
+    <td class="num">${fN(s.amount)}</td><td class="num"><input type="number" step="any" min="0" data-fxkey="${s.key}" value="${r}" style="width:92px;text-align:right;padding:4px 6px;border:1px solid var(--line2);border-radius:6px"/></td>
+    <td class="num" data-fxout="${s.key}">${fN(s.amount*r)}</td></tr>`; }).join('');
+  p.innerHTML=`<div class="ph"><h3>Currency &amp; exchange rates</h3><span class="sub">base currency: ${ccy}</span></div><div class="pb">
+   <div class="banner-info" style="margin-top:0">P6 stores all project cost in a <b>single base currency</b> (${ccy}); the figures are already consistent. Use rates below only if this project used a separate <b>resource per currency</b>.</div>
+   ${m.multiCurrencySuspect?`<div class="banner-warn"><b>⚠ Different currencies suspected</b> — sources look like ${m.hintedCurrencies.join(' and ')}.</div>`:''}
+   <div class="filterbar"><label><input type="checkbox" id="fxOn" ${STATE.fx.on?'checked':''}/> <b>Apply exchange rates</b></label>
+     <label>Report in: <input type="text" id="fxTarget" value="${STATE.fx.target||ccy}" style="width:80px;padding:5px 8px;border:1px solid var(--line2);border-radius:6px"/></label></div>
+   <div class="tbl-wrap" style="max-height:240px"><table class="grid"><thead><tr><th class="no-sort">Cost source</th><th class="no-sort">Detected</th><th class="no-sort num">As stored</th><th class="no-sort num">× Rate</th><th class="no-sort num">Converted</th></tr></thead><tbody>${rows||'<tr><td colspan="5">No cost sources.</td></tr>'}</tbody></table></div></div>`;
+  setTimeout(()=>{ const upd=()=>{ (m.costSources||[]).forEach(s=>{ const r=STATE.fx.rates[s.key]!=null?STATE.fx.rates[s.key]:1;
+      const c=p.querySelector(`[data-fxout="${s.key}"]`); if(c)c.textContent=fN(s.amount*r); }); };
+    p.querySelectorAll('[data-fxkey]').forEach(i=>i.addEventListener('input',e=>{ const v=parseFloat(e.target.value);
+      STATE.fx.rates[e.target.dataset.fxkey]=isNaN(v)?1:v; upd(); if(STATE.fx.on) drawSc(m,$('#scBasis').value,$('#scGran').value); }));
+    p.querySelector('#fxOn').addEventListener('change',e=>{ STATE.fx.on=e.target.checked; drawSc(m,$('#scBasis').value,$('#scGran').value); });
+    p.querySelector('#fxTarget').addEventListener('input',e=>{ STATE.fx.target=e.target.value.trim(); if(STATE.fx.on) drawSc(m,$('#scBasis').value,$('#scGran').value); }); },0);
+  return p;
+}
+function drawSc(m,basis,gran){
+  const sc=buildSCurve(m,basis,gran,FX()), info=$('#scInfo');
+  if(!sc){ if(info)info.innerHTML='<div class="section-note">No dated activities.</div>'; return; }
+  if(!window.Chart)return; destroy('scCanvas');
+  const labels=sc.buckets.map(b=>MON[b.getMonth()]+' '+String(b.getFullYear()).slice(2));
+  const di=sc.dataDate?sc.buckets.findIndex(b=>b>=sc.dataDate):-1;
+  STATE.charts.scCanvas=new Chart($('#scCanvas'),{type:'line',data:{labels,datasets:[
+    {label:'Planned',data:sc.planned,borderColor:'#5b6b7f',backgroundColor:'rgba(91,107,127,.08)',fill:'+1',tension:.25,pointRadius:0,borderWidth:2},
+    {label:'Forecast',data:sc.forecast,borderColor:'#c77700',fill:false,tension:.25,pointRadius:0,borderWidth:2,borderDash:[6,3]},
+    {label:'Actual',data:sc.actual,borderColor:'#1e8e5a',fill:false,tension:.25,pointRadius:0,borderWidth:3}]},
+    options:{responsive:true,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:c=>c.dataset.label+': '+(basis==='cost'?money(c.parsed.y):fN(c.parsed.y)+' act')}}},
+      scales:{y:{beginAtZero:true,title:{display:true,text:basis==='cost'?('Cumulative cost'+(curLabel()?' ('+curLabel()+')':'')):'Cumulative activities'},ticks:{callback:v=>basis==='cost'?money(v):v}},
+        x:{ticks:{maxRotation:0,autoSkip:true,maxTicksLimit:14}}}},
+    plugins:[{id:'dd',afterDraw(ch){ if(di<0)return; const x=ch.scales.x.getPixelForValue(di),{top,bottom}=ch.chartArea,g=ch.ctx;
+      g.save();g.strokeStyle='#c0392b';g.lineWidth=2;g.setLineDash([5,4]);g.beginPath();g.moveTo(x,top);g.lineTo(x,bottom);g.stroke();
+      g.setLineDash([]);g.fillStyle='#c0392b';g.font='bold 10px Segoe UI';g.fillText('Data date',x+4,top+12);g.restore(); }}]});
+  if(info){ if(basis==='cost'){ const cap=Math.round(sc.total),bac=Math.round(projectCostFx(m,FX()));
+      info.innerHTML=`<div class="cost-note"><b>Cost on curve:</b> ${fN(cap)} ${curLabel()} across ${fN(sc.nTasks)} activities · <b>BAC:</b> ${fN(bac)} ${Math.abs(cap-bac)<Math.max(1,bac*0.001)?'<span style="color:var(--ahead);font-weight:700">all cost read ✓</span>':''}</div>`; }
+    else info.innerHTML=''; }
+}
+
+/* ===================== GANTT ===================== */
+function renderGantt(host){
+  const m=STATE.current; host.innerHTML='';
+  const p=panel('Gantt / Timeline','WBS-grouped · critical outlined red · float shadow · milestones as diamonds',
+    `<div class="gantt-tools no-print"><label><input type="checkbox" id="gCrit"/> Critical only</label>
+     <label>WBS: <select id="gWbs"></select></label>
+     <span class="legend" style="margin-left:auto"><span><span class="sw" style="background:#94a3b8"></span>Not started</span><span><span class="sw" style="background:#2e78c7"></span>In progress</span><span><span class="sw" style="background:#1e8e5a"></span>Complete</span><span><span class="sw" style="background:#c0392b"></span>Critical</span></span>
+     </div><div id="ganttHost"></div>`,true);
+  p.querySelector('.right').appendChild(btn('Export PNG',()=>{ if(STATE._gx) STATE._gx(); })); host.appendChild(p);
+  const sel=$('#gWbs'); sel.innerHTML='<option value="">All WBS</option>'+Object.values(m.wbsById).filter(w=>!w.isProjNode).map(w=>`<option value="${w.id}">${w.name}</option>`).join('');
+  const rd=()=>gantt(m,{crit:$('#gCrit').checked,wbs:sel.value});
+  $('#gCrit').addEventListener('change',rd); sel.addEventListener('change',rd); gantt(m,{crit:false,wbs:''});
+}
+function gantt(m,o){
+  const host=$('#ganttHost'); host.innerHTML='';
+  let ts=m.tasks.filter(t=>!t.isLOE);
+  if(o.crit) ts=ts.filter(t=>t.tf_days<=STATE.critThreshold+1e-6);
+  if(o.wbs){ const k=descW(m,o.wbs); ts=ts.filter(t=>k.has(t.wbs_id)); }
+  if(!ts.length){ host.innerHTML='<div class="empty-state">No activities match.</div>'; return; }
+  const byW={}; ts.forEach(t=>{(byW[t.wbs_id]=byW[t.wbs_id]||[]).push(t);});
+  const early=l=>{let x=Infinity;l.forEach(t=>{if(t.bestStart){const v=t.bestStart.getTime();if(v<x)x=v;}});return x;};
+  const rows=[]; Object.keys(byW).sort((a,b)=>early(byW[a])-early(byW[b])).forEach(w=>{
+    rows.push({type:'wbs',name:m.wbsById[w]?m.wbsPath(w):('WBS '+w)});
+    byW[w].sort((a,b)=>(a.bestStart||0)-(b.bestStart||0)).forEach(t=>rows.push({type:'task',t})); });
+  let mn=null,mx=null; ts.forEach(t=>{const s=t.bestStart,f=t.late_end||t.bestFinish;
+    if(s&&(!mn||s<mn))mn=s; if(f&&(!mx||f>mx))mx=f; if(t.bestFinish&&(!mx||t.bestFinish>mx))mx=t.bestFinish;});
+  if(!mn||!mx){host.innerHTML='<div class="empty-state">No dates.</div>';return;}
+  mn=new Date(mn.getFullYear(),mn.getMonth(),1); mx=new Date(mx.getFullYear(),mx.getMonth()+1,1);
+  const span=mx-mn,L=340,RH=24,HH=30,VH=Math.min(560,Math.max(220,rows.length*RH+HH+2));
+  const W=Math.max(680,Math.round(span/864e5*3)),TH=rows.length*RH,xf=d=>d?(d-mn)/span*W:0;
+  const wrap=el('div'); wrap.style.cssText='display:flex;align-items:flex-start';
+  const lc=el('div'); lc.style.cssText=`width:${L}px;min-width:${L}px;border-right:1px solid var(--line);background:#fff`;
+  const lh=el('div','g-left-h'); lh.style.cssText=`height:${HH}px;line-height:${HH-16}px`; lh.textContent='Activity';
+  const lv=el('div'); lv.style.cssText=`height:${VH-HH}px;overflow:hidden;position:relative`;
+  const li=el('div'); li.style.cssText='position:absolute;left:0;right:0;top:0'; lv.appendChild(li); lc.appendChild(lh); lc.appendChild(lv);
+  const rc=el('div'); rc.style.cssText='flex:1;min-width:0';
+  const hc=el('div'); hc.style.cssText=`height:${HH}px;overflow:hidden;position:relative;background:#f8fafc;border-bottom:1px solid var(--line)`;
+  const hcv=el('canvas'),dpr=window.devicePixelRatio||1;
+  const bs=el('div'); bs.style.cssText=`height:${VH-HH}px;overflow:auto;position:relative`;
+  const sz=el('div'); sz.style.cssText=`width:${W}px;height:${TH}px;position:relative`;
+  const bcv=el('canvas'); bcv.style.cssText='position:sticky;top:0;left:0;pointer-events:none';
+  sz.appendChild(bcv); bs.appendChild(sz); hc.appendChild(hcv); rc.appendChild(hc); rc.appendChild(bs);
+  wrap.appendChild(lc); wrap.appendChild(rc); host.appendChild(wrap);
+  hcv.width=W*dpr; hcv.height=HH*dpr; hcv.style.width=W+'px'; hcv.style.height=HH+'px';
+  const h=hcv.getContext('2d'); h.scale(dpr,dpr);
+  (function(){ h.fillStyle='#f8fafc';h.fillRect(0,0,W,HH);h.font='11px Segoe UI'; let d=new Date(mn);
+    while(d<mx){ const x=xf(d); h.strokeStyle='#e2e8f0';h.beginPath();h.moveTo(x,0);h.lineTo(x,HH);h.stroke();
+      h.fillStyle='#5b6b7f';h.fillText(MON[d.getMonth()]+' '+String(d.getFullYear()).slice(2),x+4,19); d=new Date(d.getFullYear(),d.getMonth()+1,1); }
+    if(m.dataDate){const x=xf(m.dataDate);h.strokeStyle='#c0392b';h.lineWidth=1.5;h.setLineDash([4,3]);h.beginPath();h.moveTo(x,0);h.lineTo(x,HH);h.stroke();h.setLineDash([]);h.fillStyle='#c0392b';h.fillText('DD',x+3,11);} })();
+  function fit(){ const cw=bs.clientWidth,ch=VH-HH; bcv.width=cw*dpr;bcv.height=ch*dpr;bcv.style.width=cw+'px';bcv.style.height=ch+'px';
+    const c=bcv.getContext('2d'); c.setTransform(dpr,0,0,dpr,0,0); return c; }
+  let b=fit();
+  function draw(){ const sl=bs.scrollLeft,st=bs.scrollTop,cw=bcv.width/dpr,ch=bcv.height/dpr; b.clearRect(0,0,cw,ch);
+    let d=new Date(mn); b.strokeStyle='#eef2f7';b.lineWidth=1;
+    while(d<mx){const x=xf(d)-sl; if(x>=-2&&x<=cw){b.beginPath();b.moveTo(x,0);b.lineTo(x,ch);b.stroke();} d=new Date(d.getFullYear(),d.getMonth()+1,1);}
+    if(m.dataDate){const x=xf(m.dataDate)-sl; if(x>=0&&x<=cw){b.strokeStyle='#c0392b';b.lineWidth=1.5;b.setLineDash([4,3]);b.beginPath();b.moveTo(x,0);b.lineTo(x,ch);b.stroke();b.setLineDash([]);b.lineWidth=1;}}
+    const f=Math.max(0,Math.floor(st/RH)-1),la=Math.min(rows.length,Math.ceil((st+ch)/RH)+1);
+    li.style.top=(-st)+'px'; li.innerHTML='';
+    for(let i=f;i<la;i++){ const r=rows[i],y=i*RH-st;
+      const lab=el('div'); lab.style.cssText=`position:absolute;top:${i*RH}px;left:0;right:0;height:${RH}px;line-height:${RH}px;padding:0 10px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:1px solid #f1f5f9;box-sizing:border-box`;
+      if(r.type==='wbs'){ lab.style.fontWeight='700';lab.style.background='#f1f5f9';lab.style.color='#0f2c47';lab.textContent=r.name; }
+      else { const t=r.t; lab.innerHTML=`<span class="mono" style="color:#7b8a9b">${t.code}</span> ${t.name}`; if(t.tf_days<=0) lab.style.color='#c0392b'; }
+      li.appendChild(lab);
+      if(r.type==='wbs'){ b.fillStyle='#eef2f7'; b.fillRect(0,y,cw,RH); continue; }
+      const t=r.t,s=t.bestStart,fi=t.bestFinish,ry=y+5,bh=RH-11,cr=t.tf_days<=0;
+      if(t.late_end&&fi&&t.late_end>fi){ b.fillStyle='#dbe4ee'; b.fillRect(xf(fi)-sl,ry+2,Math.max(1,xf(t.late_end)-xf(fi)),bh-4); }
+      if(t.isMilestone){ const x=xf(s||fi)-sl,cy=y+RH/2,q=6; b.fillStyle=cr?'#c0392b':'#0f2c47';
+        b.beginPath();b.moveTo(x,cy-q);b.lineTo(x+q,cy);b.lineTo(x,cy+q);b.lineTo(x-q,cy);b.closePath();b.fill(); }
+      else if(s&&fi){ const x=xf(s)-sl,w=Math.max(2,xf(fi)-xf(s));
+        b.fillStyle=t.status==='TK_Complete'?'#1e8e5a':t.status==='TK_Active'?'#2e78c7':'#94a3b8'; rr(b,x,ry,w,bh,3);b.fill();
+        if(t.status==='TK_Active'&&t.pct>0){ b.fillStyle='rgba(0,0,0,.18)'; rr(b,x,ry,w*t.pct/100,bh,3);b.fill(); }
+        if(cr){ b.strokeStyle='#c0392b';b.lineWidth=1.5; rr(b,x,ry,w,bh,3);b.stroke();b.lineWidth=1; } } } }
+  bs.addEventListener('scroll',()=>{ hcv.style.transform=`translateX(${-bs.scrollLeft}px)`; draw(); });
+  if(window.ResizeObserver) new ResizeObserver(()=>{b=fit();draw();}).observe(bs);
+  draw();
+  STATE._gx=()=>{ const MAX=30000,use=rows.slice(0,Math.floor((MAX-HH)/RH));
+    const cv=document.createElement('canvas'),H2=HH+use.length*RH,W2=340+W; cv.width=W2;cv.height=H2;
+    const c=cv.getContext('2d'); c.fillStyle='#fff';c.fillRect(0,0,W2,H2);c.fillStyle='#f8fafc';c.fillRect(0,0,W2,HH);c.font='11px Segoe UI';
+    let d=new Date(mn); while(d<mx){const x=340+xf(d);c.strokeStyle='#e2e8f0';c.beginPath();c.moveTo(x,0);c.lineTo(x,H2);c.stroke();
+      c.fillStyle='#5b6b7f';c.fillText(MON[d.getMonth()]+' '+String(d.getFullYear()).slice(2),x+4,19);d=new Date(d.getFullYear(),d.getMonth()+1,1);}
+    c.font='12px Segoe UI';
+    use.forEach((r,i)=>{ const y=HH+i*RH;
+      if(r.type==='wbs'){c.fillStyle='#f1f5f9';c.fillRect(0,y,W2,RH);c.fillStyle='#0f2c47';c.font='700 12px Segoe UI';c.fillText(r.name,8,y+16);c.font='12px Segoe UI';return;}
+      const t=r.t; c.fillStyle=t.tf_days<=0?'#c0392b':'#1e2a38'; c.fillText((t.code+'  '+t.name).slice(0,52),8,y+16);
+      const s=t.bestStart,fi=t.bestFinish,ry=y+5,bh=RH-11;
+      if(t.isMilestone){const x=340+xf(s||fi),cy=y+RH/2,q=6;c.fillStyle=t.tf_days<=0?'#c0392b':'#0f2c47';c.beginPath();c.moveTo(x,cy-q);c.lineTo(x+q,cy);c.lineTo(x,cy+q);c.lineTo(x-q,cy);c.closePath();c.fill();}
+      else if(s&&fi){const x=340+xf(s),w=Math.max(2,xf(fi)-xf(s));c.fillStyle=t.status==='TK_Complete'?'#1e8e5a':t.status==='TK_Active'?'#2e78c7':'#94a3b8';rr(c,x,ry,w,bh,3);c.fill();} });
+    const a=el('a');a.href=cv.toDataURL('image/png');a.download='gantt.png';a.click(); };
+}
+function descW(m,r){ const s=new Set([r]); let go=true; while(go){go=false;Object.values(m.wbsById).forEach(w=>{if(w.parent&&s.has(w.parent)&&!s.has(w.id)){s.add(w.id);go=true;}});} return s; }
+function rr(c,x,y,w,h,r){ r=Math.min(r,w/2,h/2); c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath(); }
+
+/* ===================== LOOK-AHEAD ===================== */
+function renderLookahead(host){
+  const m=STATE.current,dd=m.dataDate; host.innerHTML='';
+  if(!dd){ host.appendChild(info('No data date — cannot build look-ahead.')); return; }
+  const hz=new Date(dd.getTime()+28*864e5);
+  const rows=m.tasks.filter(t=>!t.isLOE&&t.status!=='TK_Complete'&&t.bestStart&&t.bestStart>=new Date(dd.getTime()-864e5)&&t.bestStart<=hz).sort((a,b)=>(a.bestStart||0)-(b.bestStart||0));
+  const p=panel('4-Week Look-Ahead',`${fD(dd)} → ${fD(hz)} · ${fN(rows.length)} activities`,
+    `<div class="filterbar no-print"><input type="text" id="laS" placeholder="Search…"/><label><input type="checkbox" id="laB"/> Only blocked (open logic / constraint)</label><button class="mini-btn" id="laP">🖨 Print</button></div><div id="laT"></div>`,true);
+  p.querySelector('.right').appendChild(btn('Export CSV',()=>csv('lookahead.csv',[['ID','Activity','WBS','Status','Start','Finish','TF','Preds','Succs','Constraint']].concat(
+    rows.map(t=>[t.code,t.name,m.wbsById[t.wbs_id]?m.wbsById[t.wbs_id].name:'',statusText(t.status),fD(t.bestStart),fD(t.bestFinish),fN(t.tf_days,1),t.preds.length,t.succs.length,t.cstr_type||''])))));
+  host.appendChild(p);
+  const d=()=>{ const q=($('#laS').value||'').toLowerCase(); let r=rows.filter(t=>(t.code+' '+t.name).toLowerCase().includes(q));
+    if($('#laB').checked) r=r.filter(t=>t.preds.length===0||t.cstr_type);
+    tbl($('#laT'),{rows:r,pageSize:25,sortKey:'start',cols:[
+      {k:'code',t:'ID',get:t=>`<a href="#" class="lnk" data-act="${t.id}"><span class="mono">${t.code}</span></a>`,val:t=>t.code},
+      {k:'name',t:'Activity',get:t=>t.name,val:t=>t.name},
+      {k:'st',t:'Status',get:t=>sChip(t.status),val:t=>t.status},
+      {k:'start',t:'Start',get:t=>fD(t.bestStart),val:t=>t.bestStart?t.bestStart.getTime():0},
+      {k:'fin',t:'Finish',get:t=>fD(t.bestFinish),val:t=>t.bestFinish?t.bestFinish.getTime():0},
+      {k:'tf',t:'TF (d)',cls:'num',get:t=>`<span class="${t.tf_days<0?'tf-neg':t.tf_days<=0?'pos':''}">${fN(t.tf_days,0)}</span>`,val:t=>t.tf_days},
+      {k:'fl',t:'Flags',get:t=>{const f=[];if(t.preds.length===0)f.push('<span class="chip c-crit">Open start</span>');if(t.cstr_type)f.push('<span class="chip c-ip">Constraint</span>');return f.join(' ')||'—';},val:t=>t.preds.length===0?1:0}]});
+    wireActivityLinks(host); };
+  $('#laS').addEventListener('input',d); $('#laB').addEventListener('change',d);
+  $('#laP').addEventListener('click',()=>{document.body.classList.add('printing');window.print();setTimeout(()=>document.body.classList.remove('printing'),400);}); d();
+}
+
+/* ===================== CRITICAL PATH ===================== */
+function renderCritical(host){
+  const m=STATE.current,path=tracePath(m),d=dcma14(m,{}); host.innerHTML='';
+  const p=panel('Critical Path Explorer',`${path.length} activities · ${fN(d.extras.cpLenDays)} calendar-days`,'',true);
+  p.querySelector('.right').appendChild(btn('Export CSV',()=>csv('critical-path.csv',[['#','ID','Activity','Status','Dur','Start','Finish','TF']].concat(
+    path.map((t,i)=>[i+1,t.code,t.name,statusText(t.status),fN(t.dur_days,1),fD(t.bestStart),fD(t.bestFinish),fN(t.tf_days,1)])))));
+  const b=el('div');
+  b.innerHTML=path.length?`<div class="tbl-wrap"><table class="grid"><thead><tr><th class="no-sort num">#</th><th class="no-sort">ID</th><th class="no-sort">Activity</th><th class="no-sort">Status</th><th class="no-sort num">Dur</th><th class="no-sort">Start</th><th class="no-sort">Finish</th><th class="no-sort num">TF</th><th class="no-sort">→ Link</th></tr></thead><tbody>${
+    path.map((t,i)=>{ const nx=i<path.length-1?path[i+1]:null; const r=nx?nx.preds.find(x=>x.pred_id===t.id):null;
+    return `<tr><td class="num">${i+1}</td><td><a href="#" class="lnk" data-act="${t.id}"><span class="mono">${t.code}</span></a></td><td>${t.name}</td><td>${sChip(t.status)}</td><td class="num">${fN(t.dur_days,0)}</td><td>${fD(t.bestStart)}</td><td>${fD(t.bestFinish)}</td><td class="num ${t.tf_days<0?'tf-neg':'pos'}">${fN(t.tf_days,0)}</td><td>${r?rtBadge(r.type)+(r.lag_days?` ${fN(r.lag_days,0)}d`:''):'—'}</td></tr>`; }).join('')}</tbody></table></div>`
+    :'<div class="empty-state">No continuous critical path.</div>';
+  p.querySelector('.pb').appendChild(b); host.appendChild(p); wireActivityLinks(host);
+}
+
+/* ===================== COMPARISON ===================== */
+function renderComparison(host){
+  if(!(STATE.A&&STATE.B)){ host.innerHTML='<div class="empty-state">Load a second XER.</div>'; return; }
+  const c=compare(STATE.A,STATE.B); host.innerHTML='';
+  const g=el('div','kpi-grid'),slip=c.finishSlip;
+  g.appendChild(kpi('Forecast Finish — A',fD(c.sumA.forecastFinish),STATE.A.fileName));
+  g.appendChild(kpi('Forecast Finish — B',fD(c.sumB.forecastFinish),STATE.B.fileName));
+  g.appendChild(kpi('Finish Slip / Gain',signDays(slip),slip>0?'Slipped':slip<0?'Improved':'No change',slip>0?'crit':slip<0?'good':''));
+  g.appendChild(kpi('% Complete Δ',(c.pctDelta>=0?'+':'')+c.pctDelta.toFixed(1)+'%',`${c.sumA.pctDurWeighted.toFixed(1)}% → ${c.sumB.pctDurWeighted.toFixed(1)}%`,c.pctDelta>=0?'good':'crit'));
+  g.appendChild(kpi('Activities Added',fN(c.added.length),'new in current update',c.added.length?'warn':''));
+  g.appendChild(kpi('Activities Deleted',fN(c.deleted.length),'removed since previous',c.deleted.length?'crit':'good'));
+  g.appendChild(kpi('Relationship Changes',fN(c.relAdded.length+c.relRemoved.length+c.relLagChanged.length+c.relTypeChanged.length),
+    `${c.relAdded.length} added · ${c.relRemoved.length} removed · ${c.relTypeChanged.length} re-typed`,(c.relAdded.length+c.relRemoved.length)?'warn':''));
+  g.appendChild(kpi('Critical Path Δ',signDays(c.cpLenDeltaDays),c.cpChangedActs.onlyB.length?`${c.cpChangedActs.onlyB.length} newly critical`:'Same drivers',c.cpLenDeltaDays>0?'crit':''));
+  host.appendChild(g);
+  host.appendChild(narrative(c));
+  // Added / deleted registers
+  const two=el('div','two-col');
+  two.appendChild(listPanel('Activities Deleted ('+c.deleted.length+')',c.deleted,'crit'));
+  two.appendChild(listPanel('Activities Added ('+c.added.length+')',c.added,'good'));
+  host.appendChild(two);
+  // Relationship changes incl. TYPE changes
+  const lp=panel('Relationship Changes','added · removed · re-typed · re-lagged — exactly what a claims analyst looks for','<div id="cmpLogic"></div>',true);
+  lp.querySelector('.right').appendChild(btn('Export CSV',()=>{ const R=[['Change','Predecessor','Successor','From','To','Detail']];
+    c.relAdded.forEach(r=>R.push(['Added',r.pred_code,r.succ_code,'',relType(r.type),fN(r.lag_days,1)+'d lag']));
+    c.relRemoved.forEach(r=>R.push(['Removed',r.pred_code,r.succ_code,relType(r.type),'',fN(r.lag_days,1)+'d lag']));
+    c.relTypeChanged.forEach(x=>R.push(['Type changed',x.to.pred_code,x.to.succ_code,relType(x.from.type),relType(x.to.type),'']));
+    c.relLagChanged.forEach(x=>R.push(['Lag changed',x.to.pred_code,x.to.succ_code,fN(x.from.lag_days,1)+'d',fN(x.to.lag_days,1)+'d','']));
+    csv('relationship-changes.csv',R); }));
+  host.appendChild(lp);
+  const rows=[...c.relAdded.map(r=>({k:'Added',cls:'c-done',r,from:'',to:relType(r.type),det:fN(r.lag_days,0)+'d lag'})),
+    ...c.relRemoved.map(r=>({k:'Removed',cls:'c-crit',r,from:relType(r.type),to:'',det:fN(r.lag_days,0)+'d lag'})),
+    ...c.relTypeChanged.map(x=>({k:'Type changed',cls:'c-ip',r:x.to,from:relType(x.from.type),to:relType(x.to.type),det:relType(x.to.type)==='SF'?'⚠ now Start-to-Finish (invalid)':''})),
+    ...c.relLagChanged.map(x=>({k:'Lag changed',cls:'c-ip',r:x.to,from:fN(x.from.lag_days,0)+'d',to:fN(x.to.lag_days,0)+'d',det:''}))];
+  if(rows.length) tbl($('#cmpLogic'),{rows,pageSize:25,sortKey:'k',cols:[
+    {k:'k',t:'Change',get:x=>`<span class="chip ${x.cls}">${x.k}</span>`,val:x=>x.k},
+    {k:'p',t:'Predecessor',get:x=>`<a href="#" class="lnk" data-code="${x.r.pred_code}"><span class="mono">${x.r.pred_code}</span></a>`,val:x=>x.r.pred_code},
+    {k:'s',t:'Successor',get:x=>`<a href="#" class="lnk" data-code="${x.r.succ_code}"><span class="mono">${x.r.succ_code}</span></a>`,val:x=>x.r.succ_code},
+    {k:'f',t:'From',get:x=>x.from?(/^[A-Z]{2}$/.test(x.from)?rtBadge('PR_'+x.from):x.from):'—',val:x=>x.from},
+    {k:'t2',t:'To',get:x=>x.to?(/^[A-Z]{2}$/.test(x.to)?rtBadge('PR_'+x.to):x.to):'—',val:x=>x.to},
+    {k:'d',t:'Detail',get:x=>x.det||'—',val:x=>x.det}]});
+  else $('#cmpLogic').innerHTML='<div class="section-note">No relationship changes detected.</div>';
+  // activity change log
+  const dp=panel('Activity-Level Change Log','red = slipped · green = improved · includes duration, constraint & calendar changes',
+    `<div class="filterbar no-print"><input type="text" id="cS" placeholder="Search…"/><label>Show: <select id="cF">
+      <option value="all">All changed</option><option value="slip">Slipped</option><option value="gain">Improved</option>
+      <option value="status">Status changed</option><option value="dur">Duration changed</option><option value="cstr">Constraint changed</option></select></label></div><div id="cD"></div>`,true);
+  dp.querySelector('.right').appendChild(btn('Export CSV',()=>csv('activity-changes.csv',[['ID','Activity','StartD','FinishD','DurD','FloatD','PctD','StatusA','StatusB','ConstraintChanged','CalendarChanged']].concat(
+    c.changed.map(x=>[x.code,x.name,x.startVar,x.finishVar,x.durVar.toFixed(1),x.floatVar.toFixed(1),x.pctVar.toFixed(0),statusText(x.ta.status),statusText(x.tb.status),x.cstrChanged?'Yes':'',x.calChanged?'Yes':''])))));
+  host.appendChild(dp);
+  const dd=()=>{ const q=($('#cS').value||'').toLowerCase(),f=$('#cF').value;
+    let r=c.changed.filter(x=>(x.code+' '+x.name).toLowerCase().includes(q));
+    if(f==='slip')r=r.filter(x=>x.finishVar>0); else if(f==='gain')r=r.filter(x=>x.finishVar<0);
+    else if(f==='status')r=r.filter(x=>x.statusChanged); else if(f==='dur')r=r.filter(x=>Math.abs(x.durVar)>0.5);
+    else if(f==='cstr')r=r.filter(x=>x.cstrChanged);
+    tbl($('#cD'),{rows:r,pageSize:25,sortKey:'fv',sortDir:-1,rowClass:x=>x.finishVar>0?'slip':x.finishVar<0?'gain':'',cols:[
+      {k:'code',t:'ID',get:x=>`<a href="#" class="lnk" data-act="${x.tb.id}"><span class="mono">${x.code}</span></a>`,val:x=>x.code},
+      {k:'name',t:'Activity',get:x=>x.name,val:x=>x.name},
+      {k:'sv',t:'Start Δ',cls:'num',get:x=>dc(x.startVar),val:x=>x.startVar||0},
+      {k:'fv',t:'Finish Δ',cls:'num',get:x=>dc(x.finishVar),val:x=>x.finishVar||0},
+      {k:'dv',t:'Dur Δ',cls:'num',get:x=>dc(x.durVar),val:x=>x.durVar||0},
+      {k:'flv',t:'Float Δ',cls:'num',get:x=>{const v=Math.round(x.floatVar);return v?`<span class="${v>0?'neg':'pos'}">${v>0?'+':''}${v}d</span>`:'—';},val:x=>x.floatVar||0},
+      {k:'st',t:'Status',get:x=>x.statusChanged?`${sChip(x.ta.status)}→${sChip(x.tb.status)}`:'—',val:x=>x.statusChanged?1:0},
+      {k:'ot',t:'Other',get:x=>{const o=[];if(x.cstrChanged)o.push('<span class="chip c-ip">Constraint</span>');if(x.calChanged)o.push('<span class="chip c-ip">Calendar</span>');if(x.nameChanged)o.push('<span class="chip c-ns">Renamed</span>');return o.join(' ')||'—';},val:x=>0}]});
+    wireActivityLinks(host); };
+  $('#cS').addEventListener('input',dd); $('#cF').addEventListener('change',dd); dd();
+}
+function dc(v){ if(!v)return'—'; return `<span class="${v>0?'pos':'neg'}">${v>0?'+':''}${fN(v,0)}d</span>`; }
+function listPanel(title,items,tone){
+  const p=el('div','panel'); p.innerHTML=`<div class="ph"><h3>${title}</h3></div><div class="pb"></div>`;
+  const b=p.querySelector('.pb');
+  if(!items.length){ b.innerHTML='<div class="section-note">None.</div>'; return p; }
+  b.innerHTML=`<div class="scroll" style="max-height:230px"><table class="grid sm"><thead><tr><th>ID</th><th>Activity</th><th class="num">Dur</th><th>Finish</th></tr></thead><tbody>${
+    items.slice(0,300).map(t=>`<tr><td class="mono" style="color:var(--${tone==='crit'?'crit':'ahead'})">${t.code}</td><td>${t.name}</td><td class="num">${fN(t.dur_days,0)}d</td><td>${fD(t.bestFinish)}</td></tr>`).join('')}</tbody></table></div>`;
+  return p;
+}
+function narrative(c){
+  const p=el('div','panel'),slip=c.finishSlip,ws={};
+  c.changed.forEach(x=>{ if(x.finishVar>0){ const w=c.b.wbsById[x.tb.wbs_id]; const n=w?w.name:'—'; ws[n]=(ws[n]||0)+x.finishVar; } });
+  const worst=Object.entries(ws).sort((a,b)=>b[1]-a[1])[0], sc=c.changed.filter(x=>x.finishVar>0&&x.tb.tf_days<=5);
+  const B=[];
+  B.push(slip>0?`Project completion has <b>slipped ${slip} calendar days</b> (${fD(c.sumA.forecastFinish)} → ${fD(c.sumB.forecastFinish)}).`
+    :slip<0?`Project completion has <b>improved by ${-slip} days</b>.`:`Completion date is <b>unchanged</b> at ${fD(c.sumB.forecastFinish)}.`);
+  B.push(`Progress moved from <b>${c.sumA.pctDurWeighted.toFixed(1)}%</b> to <b>${c.sumB.pctDurWeighted.toFixed(1)}%</b>, with <b>${c.progressed.length}</b> activities advancing status.`);
+  if(worst&&slip>0) B.push(`Slippage is concentrated in <b>${worst[0]}</b>.`);
+  if(sc.length) B.push(`<b>${sc.length}</b> critical/near-critical activities slipped by an average of <b>${(sc.reduce((s,x)=>s+x.finishVar,0)/sc.length).toFixed(0)} days</b>.`);
+  if(c.relAdded.length||c.relRemoved.length||c.relTypeChanged.length) B.push(`Logic was modified: <b>${c.relAdded.length}</b> added, <b>${c.relRemoved.length}</b> removed, <b>${c.relTypeChanged.length}</b> re-typed, <b>${c.relLagChanged.length}</b> re-lagged — each requires written justification.`);
+  if(c.added.length||c.deleted.length) B.push(`Scope changed: <b>${c.added.length}</b> activities added, <b>${c.deleted.length}</b> deleted.`);
+  if(c.cpChangedActs.onlyB.length) B.push(`The driving path now runs through <b>${c.cpChangedActs.onlyB.length}</b> newly-critical activities.`);
+  p.innerHTML=`<div class="ph"><h3>Executive Delay / Progress Narrative</h3><span class="sub">auto-generated draft</span><div class="right"><button class="mini-btn" id="cn">📋 Copy</button></div></div>
+   <div class="pb"><div class="callout ${slip>0?'bad':slip<0?'good':''}"><div class="narrative"><ul>${B.map(x=>'<li>'+x+'</li>').join('')}</ul></div></div></div>`;
+  setTimeout(()=>{ const b=$('#cn'); if(b) b.addEventListener('click',()=>{ navigator.clipboard&&navigator.clipboard.writeText(B.map(x=>'• '+x.replace(/<[^>]+>/g,'')).join('\n'));
+    b.textContent='✓ Copied'; setTimeout(()=>b.textContent='📋 Copy',1500); }); },0);
+  return p;
+}
+
+/* ===================== REPORT (NEW) ===================== */
+function renderReport(host){
+  const m=STATE.current, cmp=(STATE.A&&STATE.B)?compare(STATE.A,STATE.B):null;
+  const F=reviewFindings(m,cmp,{fx:FX()}); host.innerHTML='';
+  const sc={A:'good',B:'good',C:'warn',D:'bad'}[F.status]||'warn';
+  const hero=el('div','panel');
+  hero.innerHTML=`<div class="ph"><h3>Submittal Review — Recommended Status</h3><span class="sub">computed from the full analysis</span></div>
+   <div class="pb" style="display:flex;gap:22px;align-items:center;flex-wrap:wrap">
+     <div class="statbox s-${sc}"><div class="sl">${F.status}</div><div class="sn">Status</div></div>
+     <div style="flex:1;min-width:280px"><div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:4px">${F.statusText}</div>
+       <div class="section-note" style="margin:0">DCMA ${F.dcma.passed}/${F.dcma.scored} (grade ${F.dcma.grade}) · ${F.openEnds.any.length} open ends · ${F.rel.counts.SF} SF links · ${F.dcma.extras.negFloatCount} negative-float activities</div>
+       ${F.criticalIssues.length?`<div style="margin-top:8px">${F.criticalIssues.map(i=>`<span class="chip c-crit">${i}</span>`).join(' ')}</div>`:'<div style="margin-top:8px"><span class="chip c-done">No blocking issues</span></div>'}
+     </div>
+     <div><label class="section-note" style="display:block;margin:0 0 4px">Override status</label>
+       <select id="rpStatus" style="padding:7px 10px;border:1px solid var(--line2);border-radius:6px;font-size:14px;font-weight:700">
+         ${['A','B','C','D'].map(s=>`<option value="${s}" ${s===F.status?'selected':''}>${s}</option>`).join('')}</select></div>
+   </div>`;
+  host.appendChild(hero);
+  // metadata form
+  const M=STATE.meta;
+  const f=panel('Report Details','these populate the header of the Word comments sheet',
+    `<div class="frm">
+      ${fld('Project No','projectNo',M.projectNo)}${fld('Contract No','contractNo',M.contractNo)}${fld('Work Package No','workPackage',M.workPackage)}
+      ${fld('Submittal Review Ref.','reviewRef',M.reviewRef)}${fld('Submittal No.','submittalNo',M.submittalNo)}${fld('Rev. No.','revNo',M.revNo)}
+      ${fld('Type of Submittal','submittalType',M.submittalType)}${fld('Subject','subject',M.subject,'wide')}
+      ${fld("Main Reviewer's Name",'reviewerName',M.reviewerName)}${fld('Designation','reviewerRole',M.reviewerRole)}${fld('Second Reviewer','reviewer2',M.reviewer2)}
+    </div>`,true);
+  host.appendChild(f);
+  $$('.frm input',f).forEach(i=>i.addEventListener('input',e=>{ STATE.meta[e.target.dataset.k]=e.target.value; }));
+  // generate button
+  const gen=el('div','panel');
+  gen.innerHTML=`<div class="ph"><h3>Generate Word Report</h3><span class="sub">Hill International submittal review comments form (.docx)</span></div>
+   <div class="pb"><div class="banner-info" style="margin-top:0">The document reproduces your template layout — header, review-by block, status letter, and comment sections
+     (General · Engineering &amp; Procurement · Construction${cmp?' · Progress Update':''} · Narrative · Contractual) — populated from this analysis,
+     plus appendices listing the open ends, invalid logic${cmp?', logic changes and added/deleted activities':''}.</div>
+     <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px">
+       <button class="btn-lg" id="genDocx">📄 Generate Word Comments Sheet</button>
+       <span id="genMsg" class="section-note" style="margin:0"></span></div></div>`;
+  host.appendChild(gen);
+  $('#genDocx').addEventListener('click',()=>doGenerate(F,cmp));
+  // live preview of the comment sections
+  const prev=panel('Report Preview','exactly what will be written into the Word document','<div id="rpPrev"></div>');
+  host.appendChild(prev);
+  const S=F.sections; let n=1; let html='';
+  const sec=(title,items)=>{ if(!items||!items.length) return;
+    html+=`<div class="rp-sec"><div class="rp-h">${n++}.0 &nbsp; ${title}</div><ul class="rp-ul">${
+      items.map(i=>i.sub?`<li class="sub">${i.t}</li>`:`<li>${i.b?`<b>${i.b}: </b>`:''}${(i.t||'').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')}</li>`).join('')}</ul></div>`; };
+  sec('General Comments',S.general); sec('Engineering &amp; Procurement',S.engProc); sec('Construction / Schedule Logic',S.construction);
+  if(cmp) sec('Progress Update — Changes Since Previous Revision',S.update);
+  sec('Narrative Report',S.narrative); sec('Contractual',S.contractual);
+  $('#rpPrev').innerHTML=html;
+  $('#rpStatus').addEventListener('change',e=>{ STATE.meta.statusOverride=e.target.value; });
+}
+function fld(label,key,val,cls){ return `<label class="fl ${cls||''}"><span>${label}</span><input type="text" data-k="${key}" value="${(val||'').replace(/"/g,'&quot;')}"/></label>`; }
+function doGenerate(F,cmp){
+  const msg=$('#genMsg'), btn=$('#genDocx'); const m=STATE.current;
+  if(typeof JSZip==='undefined'){ msg.innerHTML='<span style="color:var(--crit)">Report library not loaded — check your connection and retry.</span>'; return; }
+  btn.disabled=true; msg.textContent='Generating…';
+  const st=STATE.meta.statusOverride||F.status;
+  const F2=Object.assign({},F,{status:st,statusText:st===F.status?F.statusText:
+    ({A:'Approved',B:'Approved as noted — resubmission not required, comments to be incorporated in the next update',
+      C:'Revise and resubmit — comments to be incorporated and the programme resubmitted for review',
+      D:'Rejected — the programme does not meet the requirements of the Contract and shall be re-prepared'}[st])});
+  const meta=Object.assign({},STATE.meta,{
+    projectName:m.projName, reviewDate:fD(new Date()), dataDate:fD(m.dataDate),
+    forecastFinish:fD(F.summary.forecastFinish),
+    logicChanges: cmp?[...cmp.relAdded.map(r=>({type:'Added',pred:r.pred_code,succ:r.succ_code,detail:relType(r.type)+(r.lag_days?` ${fN(r.lag_days,0)}d lag`:'')})),
+      ...cmp.relRemoved.map(r=>({type:'Removed',pred:r.pred_code,succ:r.succ_code,detail:relType(r.type)})),
+      ...cmp.relTypeChanged.map(x=>({type:'Type changed',pred:x.to.pred_code,succ:x.to.succ_code,detail:relType(x.from.type)+' → '+relType(x.to.type)})),
+      ...cmp.relLagChanged.map(x=>({type:'Lag changed',pred:x.to.pred_code,succ:x.to.succ_code,detail:fN(x.from.lag_days,0)+'d → '+fN(x.to.lag_days,0)+'d'}))]:null,
+    deletedActivities: cmp?[...cmp.deleted.map(t=>({kind:'Deleted',code:t.code,name:t.name})),...cmp.added.map(t=>({kind:'Added',code:t.code,name:t.name}))]:null });
+  try{
+    generateDocxBlob(F2,meta).then(blob=>{
+      const name=(m.projName||'Project').replace(/[^A-Za-z0-9_-]+/g,'_')+'_Comments_Sheet_'+fD(new Date())+'.docx';
+      dl(blob,name); msg.innerHTML='<span style="color:var(--ahead);font-weight:600">✓ Word document generated — check your downloads.</span>'; btn.disabled=false;
+    }).catch(e=>{ console.error(e); msg.innerHTML='<span style="color:var(--crit)">Failed: '+e.message+'</span>'; btn.disabled=false; });
+  }catch(e){ console.error(e); msg.innerHTML='<span style="color:var(--crit)">Failed: '+e.message+'</span>'; btn.disabled=false; }
+}
+
+/* ===================== SHARED ===================== */
+function statusText(s){ return s==='TK_Complete'?'Complete':s==='TK_Active'?'In Progress':'Not Started'; }
+function panel(t,s,b,r){ const p=el('div','panel'); p.innerHTML=`<div class="ph"><h3>${t}</h3>${s?`<span class="sub">${s}</span>`:''}${r?'<div class="right"></div>':''}</div><div class="pb">${b||''}</div>`; return p; }
+function info(t){ const p=el('div','banner-info'); p.textContent=t; return p; }
+function btn(l,f){ const b=el('button','mini-btn',l); b.addEventListener('click',f); return b; }
+function destroy(id){ if(STATE.charts[id]){ try{STATE.charts[id].destroy();}catch(_){ } STATE.charts[id]=null; } }
+function pngOf(id,n){ const c=document.getElementById(id); if(!c)return; const a=el('a'); a.href=c.toDataURL('image/png'); a.download=n; a.click(); }
+function csvEsc(v){ v=(v==null)?'':String(v); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
+function csv(name,rows){ const b=new Blob([rows.map(r=>r.map(csvEsc).join(',')).join('\n')],{type:'text/csv'});
+  const a=el('a'); a.href=URL.createObjectURL(b); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); }
+function tbl(host,cfg){
+  const st={sortKey:cfg.sortKey||cfg.cols[0].k,sortDir:cfg.sortDir||1,page:0,size:cfg.pageSize||25};
+  function sort(rows){ const c=cfg.cols.find(x=>x.k===st.sortKey); if(!c) return rows;
+    const v=c.val||(r=>{const g=c.get(r);return typeof g==='string'?g.replace(/<[^>]+>/g,''):g;});
+    return rows.slice().sort((a,b)=>{const x=v(a),y=v(b); if(x<y)return -st.sortDir; if(x>y)return st.sortDir; return 0;}); }
+  function render(){
+    const s=sort(cfg.rows),pg=Math.max(1,Math.ceil(s.length/st.size)); st.page=Math.min(st.page,pg-1);
+    const sl=s.slice(st.page*st.size,(st.page+1)*st.size);
+    host.innerHTML=`<div class="tbl-wrap"><table class="grid"><thead><tr>${cfg.cols.map(c=>`<th data-k="${c.k}" class="${c.cls||''}">${c.t}${st.sortKey===c.k?` <span class="arr">${st.sortDir>0?'▲':'▼'}</span>`:''}</th>`).join('')}</tr></thead>
+      <tbody>${sl.map(r=>`<tr class="${cfg.rowClass?cfg.rowClass(r):''}">${cfg.cols.map(c=>`<td class="${c.cls||''}">${c.get(r)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+      <div class="pager no-print">Showing ${s.length?st.page*st.size+1:0}–${Math.min((st.page+1)*st.size,s.length)} of ${fN(s.length)} ·
+      <button ${st.page===0?'disabled':''} data-pg="p">‹ Prev</button><span>Page ${st.page+1}/${pg}</span><button ${st.page>=pg-1?'disabled':''} data-pg="n">Next ›</button></div>`;
+    host.querySelectorAll('th[data-k]').forEach(th=>th.addEventListener('click',()=>{ if(st.sortKey===th.dataset.k)st.sortDir*=-1; else{st.sortKey=th.dataset.k;st.sortDir=1;} render(); }));
+    host.querySelectorAll('[data-pg]').forEach(b=>b.addEventListener('click',()=>{ st.page+=(b.dataset.pg==='n'?1:-1); render(); }));
+    host.querySelectorAll('tr.slip').forEach(t=>t.style.background='rgba(192,57,43,.06)');
+    host.querySelectorAll('tr.gain').forEach(t=>t.style.background='rgba(30,142,90,.06)');
+    wireActivityLinks(host);
+  }
+  render();
+}
+const HELP=`<p>Reads a Primavera P6 <b>.XER</b> entirely in your browser — nothing is uploaded.</p>
+<h4>Activity Explorer</h4><p>Pick any activity to see its <b>full driving path</b> — every driving predecessor back to the start of the network, and every driven successor forward to completion — plus all direct logic with relationship types and lags. Activity IDs are clickable everywhere in the tool and jump straight here.</p>
+<h4>Logic &amp; Relationships</h4><p>Lists <b>exactly which activities</b> have an open predecessor or successor (legitimate project start/finish milestones excluded), the FS/SS/FF/SF mix, and flags every <b>Start-to-Finish link as invalid</b> along with negative lags and redundant ties. The per-activity table shows the relationship count and type for each activity.</p>
+<h4>Comparison</h4><p>Shows added and deleted activities, every relationship <b>added, removed, re-typed or re-lagged</b>, and activity-level date/duration/constraint/calendar changes.</p>
+<h4>Report</h4><p>Computes a recommended submittal status (A/B/C/D) from the analysis and generates the Hill International <b>comments sheet as a .docx</b>, with all sections populated and appendices listing the findings. You can override the status before generating.</p>
+<h4>Author</h4><p>Prepared by <b>Eng. Karim Tarek</b>. Figures are read directly from the XER; the tool does not re-run CPM.</p>`;
+function initDrop(s){ const d=$('#drop'+s);
+  d.addEventListener('dragover',e=>{e.preventDefault();d.classList.add('drag');});
+  d.addEventListener('dragleave',()=>d.classList.remove('drag'));
+  d.addEventListener('drop',e=>{e.preventDefault();d.classList.remove('drag');const f=e.dataTransfer.files[0];if(f)readFile(f,s);}); }
+document.addEventListener('DOMContentLoaded',()=>{
+  initDrop('A'); initDrop('B');
+  document.body.addEventListener('click',e=>{ const p=e.target.closest('[data-pick]');
+    if(p){ const i=$('#fileInput'); i.dataset.slot=p.dataset.pick; i.click(); }
+    const r=e.target.closest('[data-remove]'); if(r) removeSlot(r.dataset.remove); });
+  $('#fileInput').addEventListener('change',e=>{ const f=e.target.files[0]; if(f) readFile(f,e.target.dataset.slot||'A'); e.target.value=''; });
+  $$('.tab').forEach(t=>t.addEventListener('click',()=>{ if(!t.disabled) show(t.dataset.tab); }));
+  $('#helpBody').innerHTML=HELP;
+  const op=()=>{$('#helpDrawer').classList.add('open');$('#drawerMask').classList.add('open');};
+  const cl=()=>{$('#helpDrawer').classList.remove('open');$('#drawerMask').classList.remove('open');};
+  $('#btnHelp').addEventListener('click',op); $('#btnHelpClose').addEventListener('click',cl); $('#drawerMask').addEventListener('click',cl);
+  $('#btnPrint').addEventListener('click',()=>{document.body.classList.add('printing');window.print();setTimeout(()=>document.body.classList.remove('printing'),500);});
+  $('#btnReport').addEventListener('click',()=>{ if(STATE.current) show('report'); });
+  window.addEventListener('resize',()=>{ if(STATE.activeTab==='exec') fitExec(); });
+});
+})();
+
+</script>
+</body>
+</html>
