@@ -243,7 +243,7 @@ label.tchk small{color:var(--muted)}
 .m4d-vp{position:relative;height:620px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#eef3f8}
 .m4d-canvas{position:absolute;inset:0} .m4d-canvas canvas{display:block;cursor:grab;touch-action:none}
 .m4d-labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
-.m4d-lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(15,44,71,.84);color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:5px;white-space:nowrap}
+.m4d-lbl{position:absolute;background:rgba(15,44,71,.84);color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:5px;white-space:nowrap}
 .m4d-lbl.big{font-size:14px;font-weight:800;letter-spacing:1px;padding:5px 12px}
 .m4d-lbl.big.plan{background:rgba(91,107,127,.92)} .m4d-lbl.big.built{background:rgba(184,134,43,.95)}
 .m4d-hud{position:absolute;left:12px;top:12px;background:rgba(15,44,71,.88);color:#dbe7f2;border-radius:9px;padding:10px 14px;min-width:290px;box-shadow:0 6px 20px rgba(16,42,68,.25);pointer-events:none}
@@ -272,7 +272,7 @@ a.worst-i{text-decoration:none}
 .g4-bar input[type=text]{flex:1;min-width:90px;padding:4px 7px;border:1px solid var(--line2);border-radius:6px;font-size:11.5px;font-family:inherit}
 .g4-box{flex:1;overflow-y:auto;overflow-x:hidden;position:relative;min-height:0}
 .g4-box canvas{position:sticky;top:0;left:0;display:block;touch-action:none}
-.m4d-tlbl{position:absolute;transform:translate(-50%,-100%);background:rgba(240,165,0,.95);color:#1e2a38;font-size:10.5px;padding:2px 7px;border-radius:4px;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.18)}
+.m4d-tlbl{position:absolute;background:rgba(240,165,0,.95);color:#1e2a38;font-size:10.5px;padding:2px 7px;border-radius:4px;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.18)}
 .m4d-tlbl.sel{background:#ffd400;outline:2px solid #0f2c47}
 .sw4{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:middle}
 @media(max-width:1100px){.m4d-split{grid-template-columns:1fr;height:auto}.m4d-gantt{height:320px}.m4d-split .m4d-vp{height:560px}}
@@ -299,6 +299,19 @@ a.worst-i{text-decoration:none}
 .mp-sum{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin:6px 0;font-size:12px}
 .mp-tbl tbody tr{cursor:pointer} .mp-tbl td{font-size:11.5px}
 @media(max-width:1100px){.mp-wrap{grid-template-columns:1fr;height:auto}.mp-stage{height:560px}.mp-list{max-height:260px}}
+
+.m4d-act{position:absolute;right:12px;top:12px;width:340px;max-width:46%;background:rgba(255,255,255,.95);border:1px solid var(--line);border-radius:10px;box-shadow:0 6px 20px rgba(16,42,68,.18);font-size:11.5px;overflow:hidden;z-index:3}
+.m4d-act .ma-h{display:flex;justify-content:space-between;align-items:center;padding:8px 12px 6px;color:var(--navy);letter-spacing:.4px}
+.m4d-act .ma-h span{color:var(--muted);font-size:11px}
+.m4d-act .ma-r{display:grid;grid-template-columns:8px 92px 1fr 52px 30px;gap:7px;align-items:center;padding:4px 12px;cursor:pointer}
+.m4d-act .ma-r:hover{background:#f5f9fd} .m4d-act .ma-r.sel{background:#fff4cc}
+.m4d-act .ma-r i{width:8px;height:11px;border-radius:2px;display:block}
+.m4d-act .ma-r b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px;color:var(--ink)}
+.m4d-act .ma-n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink2)}
+.m4d-act .ma-b{height:7px;background:#e2e8f0;border-radius:4px;overflow:hidden;display:block} .m4d-act .ma-b span{display:block;height:100%;transition:width .12s linear}
+.m4d-act small{color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+.m4d-act .ma-none,.m4d-act .ma-more{padding:4px 12px 6px;color:var(--muted)} .m4d-act .ma-f{padding:5px 12px 7px;border-top:1px solid var(--line);color:var(--muted);font-size:10.5px}
+.m4d-lbl,.m4d-tlbl{left:0!important;top:0!important;will-change:transform}
 </style>
 </head>
 <body>
@@ -2211,21 +2224,22 @@ function curves(P,wkey,period){
 
 /* ---------------------------------------------------------------- shared timeline */
 // One requestAnimationFrame clock drives both the Sequence and the S-curve.
-const TL={ t:null, min:null, max:null, playing:false, speed:1, raf:0, last:0, key:null, subs:new Map() };
+const TL={ t:null, min:null, max:null, playing:false, speed:'d20', raf:0, last:0, key:null, subs:new Map(), ramp:0 };   // speed: '1'…'30' = ×weeks/s, 'dNN' = whole programme in NN s
 const DAYS_PER_SEC=7;                                     // 1x = one week of programme per second
 function tlInit(P){ const k=pid(P); if(TL.key===k) return; TL.key=k; TL.min=P.seqMin; TL.max=P.seqMax;
   TL.t=(P.dd!=null&&P.dd>=TL.min&&P.dd<=TL.max)?P.dd:TL.min; tlPause(); }
 function tlNotify(){ TL.subs.forEach(f=>{ try{ f(); }catch(e){ console.error(e); } }); }
 function tlSet(t){ TL.t=Math.max(TL.min,Math.min(TL.max,t)); tlNotify(); }
 function anyAnimatedVisible(){ return !!document.querySelector('#view-m4d:not(.hidden),#view-scx:not(.hidden),#view-kpi:not(.hidden)'); }
-function tlPlay(){ if(TL.playing||TL.min==null) return; if(TL.t>=TL.max) TL.t=TL.min; TL.playing=true; TL.last=performance.now(); TL.raf=requestAnimationFrame(tick); tlNotify(); }
+function tlPlay(){ if(TL.playing||TL.min==null) return; if(TL.t>=TL.max) TL.t=TL.min; TL.playing=true; TL.ramp=0; TL.last=performance.now(); TL.raf=requestAnimationFrame(tick); tlNotify(); }
 function tlPause(){ TL.playing=false; if(TL.raf) cancelAnimationFrame(TL.raf); TL.raf=0; tlNotify(); }
 function tlRestart(){ TL.t=TL.min; tlNotify(); tlPlay(); }
 function tick(now){
   if(!TL.playing) return;
   if(!anyAnimatedVisible()){ tlPause(); return; }         // stop burning CPU on other tabs
-  const dt=Math.min(0.1,(now-TL.last)/1000); TL.last=now;
-  TL.t+=dt*TL.speed*DAYS_PER_SEC*DAY;
+  const dt=Math.min(0.05,(now-TL.last)/1000); TL.last=now; TL.ramp=Math.min(1,TL.ramp+dt/0.6);           // 0.6 s ease-in from a standstill
+  const sp=String(TL.speed), rate=sp[0]==='d'?(TL.max-TL.min)/Math.max(1,+sp.slice(1)):(+sp)*DAYS_PER_SEC*DAY;
+  TL.t+=dt*rate*(TL.ramp*TL.ramp*(3-2*TL.ramp));
   if(TL.t>=TL.max){ TL.t=TL.max; TL.playing=false; }
   tlNotify(); if(TL.playing) TL.raf=requestAnimationFrame(tick);
 }
@@ -2234,14 +2248,14 @@ function tlBar(key,P){
   const ddFrac=(P.dd!=null&&TL.max>TL.min)?(P.dd-TL.min)/(TL.max-TL.min)*100:null;
   d.innerHTML=`<button class="mini-btn primary" data-a="play">▶ Play</button>
     <button class="mini-btn" data-a="restart">⟲ Restart</button>
-    <label class="tl-sp">Speed <select data-a="speed">${[1,2,5,10,30].map(v=>`<option value="${v}" ${TL.speed===v?'selected':''}>${v}x</option>`).join('')}</select></label>
+    <label class="tl-sp">Speed <select data-a="speed">${[['d10','Whole programme in 10 s'],['d20','Whole programme in 20 s'],['d30','Whole programme in 30 s'],['d60','Whole programme in 60 s'],['d120','Whole programme in 2 min'],['1','1 week / s'],['2','2 weeks / s'],['5','5 weeks / s'],['10','10 weeks / s']].map(([v,l])=>`<option value="${v}" ${String(TL.speed)===v?'selected':''}>${l}</option>`).join('')}</select></label>
     <div class="tl-track"><input type="range" min="0" max="1000" step="1" data-a="scrub" class="tl-scrub" aria-label="Timeline"/>
       ${ddFrac!=null?`<span class="tl-ddmark" style="left:calc(${ddFrac.toFixed(2)}% )" title="Data date ${fD(new Date(P.dd))}"></span>`:''}</div>
     <div class="tl-date"><span class="k">Playback date</span><b data-a="date">—</b></div>`;
   const play=d.querySelector('[data-a=play]'), scrub=d.querySelector('[data-a=scrub]'), dl=d.querySelector('[data-a=date]');
   play.addEventListener('click',()=>TL.playing?tlPause():tlPlay());
   d.querySelector('[data-a=restart]').addEventListener('click',tlRestart);
-  d.querySelector('[data-a=speed]').addEventListener('change',e=>{ TL.speed=+e.target.value; });
+  d.querySelector('[data-a=speed]').addEventListener('change',e=>{ TL.speed=e.target.value; });
   scrub.addEventListener('input',e=>{ tlSet(TL.min+(+e.target.value/1000)*(TL.max-TL.min)); });
   function upd(){ if(TL.min==null) return;
     play.textContent=TL.playing?'⏸ Pause':'▶ Play';
@@ -2906,7 +2920,7 @@ function elemProg(e,arr){ let s=0; for(let k=0;k<e.acts.length;k++) s+=e.w[k]*ar
 /* ---------- persistent Three.js viewer ---------- */
 const VIEW={ mode:'built', colorBy:'status', ghost:true, shadows:false, labels:true, tlabels:true, follow:false, gantt:true, plan:true, planOpacity:0.95,
   gLinked:false, gActive:false, gQ:'', gCol:new Set(), gColKey:'', bFilter:'', floorFilter:'', tradeOff:new Set(),
-  slice:1, useIfc:true, ifcCtx:true, sel:null, selAct:null, focusAct:null, cam:null };
+  slice:1, useIfc:true, ifcCtx:true, actPanel:true, orbit:false, sel:null, selAct:null, focusAct:null, cam:null };
 let R3=null;            // singleton renderer + persistent scene for the current model
 const C3D={ cur:null };  // current viewer model (V)
 function three(){ return (typeof window!=='undefined')?window.THREE:null; }
@@ -3149,18 +3163,47 @@ function requestRender(){ if(!R3||R3.pending) return; R3.pending=true; requestAn
 function drawNow(){ const V=C3D.cur; if(!V||!V.built||!R3.canvas.isConnected||R3.canvas.offsetParent===null) return;
   R3.renderer.render(V.scene,V.cam); placeLabels(V); }
 function placeLabels(V){ const box=document.querySelector('#m4dLabels'); if(!box) return;
-  const THREE=three(), w=R3.canvas.clientWidth, h=R3.canvas.clientHeight, v=new THREE.Vector3(); let html='';
+  const THREE=three(), w=R3.canvas.clientWidth, h=R3.canvas.clientHeight, v=new THREE.Vector3(); let html='', items=[];
   const proj=(x,y,z)=>{ v.set(x,y,z).project(V.cam); if(v.z>1) return null; const px=(v.x+1)/2*w, py=(1-v.y)/2*h; return (px<-60||px>w+60||py<-20||py>h+20)?null:[px,py]; };
   const sets=VIEW.mode==='split'?['plan','built']:[VIEW.mode==='plan'?'plan':'built'];
   if(VIEW.labels) sets.forEach(sk=>{ const off=V.sets[sk].off;
-    (V.G.ifc?V.G.ifcBlds:V.MP.blds).forEach(b=>{ if(VIEW.bFilter&&b.key!==VIEW.bFilter) return; const p=proj(b.ox+off,b.topY+4,b.oz); if(p) html+=`<div class="m4d-lbl" style="left:${p[0]}px;top:${p[1]}px">${esc(b.name)}</div>`; });
-    if(VIEW.mode==='split'){ const p=proj(V.G.site.cx+off,V.G.ymax+14,V.G.site.minz); if(p) html+=`<div class="m4d-lbl big ${sk}" style="left:${p[0]}px;top:${p[1]}px">${sk==='plan'?'AS PLANNED':'AS BUILT / FORECAST'}</div>`; } });
+    (V.G.ifc?V.G.ifcBlds:V.MP.blds).forEach(b=>{ if(VIEW.bFilter&&b.key!==VIEW.bFilter) return; const p=proj(b.ox+off,b.topY+4,b.oz); if(p) items.push(['m4d-lbl',p,esc(b.name)]); });
+    if(VIEW.mode==='split'){ const p=proj(V.G.site.cx+off,V.G.ymax+14,V.G.site.minz); if(p) items.push(['m4d-lbl big '+sk,p,sk==='plan'?'AS PLANNED':'AS BUILT / FORECAST']); } });
   if(VIEW.tlabels&&V.activeIds&&V.activeIds.length){ const off=V.sets[VIEW.mode==='plan'?'plan':'built'].off;
     V.activeIds.map(id=>V.G.elems[id]).sort((a,b)=>b.vol-a.vol).filter(function(e){ return this.has(e.act)?false:(this.add(e.act),true); },new Set()).slice(0,12).forEach(e=>{ const r=V.P.rows[e.act], c=elemWorld(e);
       const p=proj(c[0]+off,e.bmax[1]+0.5,c[2]); if(!p) return;
       const nm=r.name.length>34?r.name.slice(0,33)+'…':r.name;
-      html+=`<div class="m4d-tlbl${VIEW.selAct===e.act?' sel':''}" style="left:${p[0]}px;top:${p[1]}px"><b>${esc(r.code)}</b> ${esc(nm)}</div>`; }); }
-  box.innerHTML=html; }
+      items.push(['m4d-tlbl'+(VIEW.selAct===e.act?' sel':''),p,`<b>${esc(r.code)}</b> ${esc(nm)}`]); }); }
+  const kids=box.children;                                          // pooled nodes: only changed text / class is rewritten
+  for(let k=0;k<items.length;k++){ const [cls,p,hh]=items[k]; let d=kids[k]; if(!d){ d=document.createElement('div'); box.appendChild(d); }
+    if(d._c!==cls){ d.className=cls; d._c=cls; } if(d._h!==hh){ d.innerHTML=hh; d._h=hh; } d.style.transform=`translate(${p[0].toFixed(1)}px,${p[1].toFixed(1)}px) translate(-50%,-100%)`; d.style.display=''; }
+  for(let k=items.length;k<kids.length;k++) kids[k].style.display='none'; }
+
+/* ---------- Active tasks panel (top-right of the 3D view, as in the timelapse) ---------- */
+function activeTasks(V){ const FS=V.FS; if(!FS) return []; const P=V.P, plan=VIEW.mode==='plan', a=plan?FS.plan:FS.built, out=[];
+  for(let i=0;i<a.length;i++){ const p=a[i]; if(p>0.0005&&p<0.999){ const r=P.rows[i]; if(r.mile) continue; out.push({i,r,p,late:!plan&&FS.plan[i]>=0.999}); } }
+  out.sort((x,y)=>((x.r.as!=null?x.r.as:x.r.ps)||0)-((y.r.as!=null?y.r.as:y.r.ps)||0)); return out; }
+function activePanel(V,force){ const box=document.querySelector('#m4dAct'); if(!box) return;
+  if(!VIEW.actPanel){ box.style.display='none'; return; } box.style.display='';
+  const L=activeTasks(V), MAX=8, sig=L.length+'|'+L.slice(0,MAX).map(x=>x.i+':'+Math.round(x.p*50)+(x.late?'L':'')).join(',')+'|'+VIEW.selAct;
+  if(!force&&sig===V._actSig) return; V._actSig=sig; V._act=L;
+  const plan=VIEW.mode==='plan';
+  box.innerHTML=`<div class="ma-h"><b>ACTIVE TASKS</b><span>${L.length?fN(L.length)+' in progress':''}</span></div>`+
+    (L.length?L.slice(0,MAX).map(x=>`<div class="ma-r${VIEW.selAct===x.i?' sel':''}" data-i="${x.i}" title="${esc(x.r.code)} — ${esc(x.r.name)}">
+      <i style="background:${x.late?'#d0312d':'#f0a500'}"></i><b class="mono">${esc(x.r.code)}</b><span class="ma-n">${esc(x.r.name)}</span>
+      <span class="ma-b"><span style="width:${(x.p*100).toFixed(0)}%;background:${x.late?'#d0312d':'#f0a500'}"></span></span><small>${(x.p*100).toFixed(0)}%</small></div>`).join('')
+      +(L.length>MAX?`<div class="ma-more">+ ${fN(L.length-MAX)} more — tick “Active now” in the task list</div>`:'')
+    :`<div class="ma-none">${TL.t<=(TL.min||0)+DAY?'Not started yet':'No task in progress on this date'}</div>`)+
+    `<div class="ma-f">${plan?'as planned':'as built / forecast'}${L.some(x=>x.late)?' · <span style="color:#ff8f80">red = behind plan</span>':''}</div>`;
+  box.querySelectorAll('.ma-r').forEach(r=>r.addEventListener('click',()=>selectAct(V,+r.dataset.i))); }
+function drawActiveOnCanvas(V,g,s,W){ if(!VIEW.actPanel) return; const L=activeTasks(V), MAX=8, rows=Math.max(1,Math.min(MAX,L.length)), w=360*s, x0=W-w-12*s, y0=12*s, h=(34+rows*22+8)*s;
+  g.fillStyle='rgba(255,255,255,.94)'; g.fillRect(x0,y0,w,h); g.fillStyle='#0f2c47'; g.font=`bold ${12*s}px Segoe UI, Arial`; g.fillText('ACTIVE TASKS',x0+12*s,y0+21*s);
+  g.font=`${11*s}px Segoe UI, Arial`; g.fillStyle='#5b6b7f'; if(L.length) g.fillText(`${L.length} in progress`,x0+w-95*s,y0+21*s);
+  if(!L.length){ g.fillText('No task in progress on this date',x0+12*s,y0+46*s); return; }
+  L.slice(0,MAX).forEach((t,k)=>{ const y=y0+(46+k*22)*s, c=t.late?'#d0312d':'#f0a500'; g.fillStyle=c; g.fillRect(x0+12*s,y-9*s,7*s,11*s);
+    g.fillStyle='#1e2a38'; g.font=`bold ${11*s}px Consolas, monospace`; g.fillText(t.r.code.slice(0,14),x0+24*s,y);
+    g.font=`${11*s}px Segoe UI, Arial`; g.fillStyle='#42556b'; let nm=t.r.name; while(nm.length>3&&g.measureText(nm).width>150*s) nm=nm.slice(0,-2); if(nm!==t.r.name) nm+='…'; g.fillText(nm,x0+130*s,y);
+    g.fillStyle='#e2e8f0'; g.fillRect(x0+w-62*s,y-8*s,48*s,7*s); g.fillStyle=c; g.fillRect(x0+w-62*s,y-8*s,48*s*t.p,7*s); }); }
 function hudUpdate(V){ const hud=document.querySelector('#m4dHud'); if(!hud||!V.FS) return;
   const P=V.P, T=TL.t, wkey=resolveW(P,EXT.weighting), cv=curves(P,wkey,'week');
   const pp=interp(cv.B,cv.planned,T), pre=(P.dd==null||T<=P.dd), ap=pre?interp(cv.B,cv.actual,T):interp(cv.B,cv.forecast,T);
@@ -3221,6 +3264,8 @@ function renderM4d(host){
       <label><input type="checkbox" data-c="ghost" ${VIEW.ghost?'checked':''}/> Ghost not-started</label>
       <label><input type="checkbox" data-c="tlabels" ${VIEW.tlabels?'checked':''}/> Active task labels</label>
       <label><input type="checkbox" data-c="follow" ${VIEW.follow?'checked':''}/> Follow active work</label>
+      <label><input type="checkbox" data-c="actp" ${VIEW.actPanel?'checked':''}/> Active tasks panel</label>
+      <label title="Slow camera orbit while playing — like the timelapse video"><input type="checkbox" data-c="orbit" ${VIEW.orbit?'checked':''}/> Cinematic orbit</label>
       <label><input type="checkbox" data-c="labels" ${VIEW.labels?'checked':''}/> Building labels</label>
       <label><input type="checkbox" data-c="shadow" ${VIEW.shadows?'checked':''}/> Shadows</label>
       ${S0.hasPlan?`<label><input type="checkbox" data-c="plan" ${VIEW.plan?'checked':''}/> Masterplan underlay</label><label>Opacity <input type="range" min="10" max="100" value="${Math.round(VIEW.planOpacity*100)}" data-c="pop" style="width:80px"/></label>`:''}
@@ -3232,7 +3277,7 @@ function renderM4d(host){
     </div>
     <div class="m4d-tl"></div>
     <div class="m4d-split ${VIEW.gantt?'':'nog'}"><div class="m4d-gantt"></div>
-      <div class="m4d-vp"><div class="m4d-canvas"></div><div id="m4dLabels" class="m4d-labels"></div><div id="m4dHud" class="m4d-hud"></div>
+      <div class="m4d-vp"><div class="m4d-canvas"></div><div id="m4dLabels" class="m4d-labels"></div><div id="m4dHud" class="m4d-hud"></div><div id="m4dAct" class="m4d-act"></div>
         <div class="m4d-legend">${legendHtml()}</div><div class="ext-tip m4d-tip"></div></div></div>
     <div class="ext-hint" style="margin-top:6px">3D: drag = orbit · right-drag / Shift-drag = pan · wheel = zoom · click = select. Task list: click a task to select its object · click a WBS row to expand/collapse · drag on the date header to move the focus time.</div>
     <div id="m4dSel" class="m4d-sel"></div>`,true);
@@ -3256,6 +3301,8 @@ function renderM4d(host){
   pnl.querySelector('[data-c=ghost]').addEventListener('change',e=>{ VIEW.ghost=e.target.checked; updateModel(V,TL.t); });
   pnl.querySelector('[data-c=tlabels]').addEventListener('change',e=>{ VIEW.tlabels=e.target.checked; requestRender(); });
   pnl.querySelector('[data-c=follow]').addEventListener('change',e=>{ VIEW.follow=e.target.checked; followActive(V); });
+  pnl.querySelector('[data-c=actp]').addEventListener('change',e=>{ VIEW.actPanel=e.target.checked; V._actSig=null; activePanel(V,true); });
+  pnl.querySelector('[data-c=orbit]').addEventListener('change',e=>{ VIEW.orbit=e.target.checked; });
   pnl.querySelector('[data-c=shadow]').addEventListener('change',e=>{ VIEW.shadows=e.target.checked; applyShadows(V); requestRender(); });
   pnl.querySelector('[data-c=labels]').addEventListener('change',e=>{ VIEW.labels=e.target.checked; requestRender(); });
   const pc=pnl.querySelector('[data-c=plan]'); if(pc) pc.addEventListener('change',e=>{ VIEW.plan=e.target.checked; applyPlanTexture(V); });
@@ -3271,9 +3318,15 @@ function renderM4d(host){
   pnl.querySelector('[data-c=vpsave]').addEventListener('click',()=>{ const name=prompt('Name this viewpoint','View '+(vps.length+1)); if(!name) return;
     vps.push({name,cam:Object.assign({},VIEW.cam)}); lsSet(vpKey,vps); rr(); });
   V.gantt=VIEW.gantt?ganttPane(pnl.querySelector('.m4d-gantt'),V):null;
+  let lastF=performance.now(), lastHud=0, lastG=0, lastS=0;
   TL.subs.set('m4d',()=>{ if(!vp.isConnected){ TL.subs.delete('m4d'); return; } if(vp.offsetParent===null) return;
-    updateModel(V,TL.t); followActive(V); hudUpdate(V); if(V.gantt) V.gantt.draw(); if(VIEW.selAct!=null) renderSel(V); });
-  V.cKey=null; updateModel(V,TL.t); hudUpdate(V); if(V.gantt) V.gantt.draw();
+    const now=performance.now(), dt=Math.min(0.05,(now-lastF)/1000); lastF=now; const play=TL.playing;
+    if(VIEW.orbit&&play&&VIEW.cam){ VIEW.cam.th+=dt*0.11; applyCam(V); }                       // ~6° per second
+    updateModel(V,TL.t); followActive(V);
+    if(!play||now-lastHud>90){ lastHud=now; hudUpdate(V); activePanel(V); }                   // text overlays ~11 fps while playing
+    if(V.gantt&&(!play||now-lastG>66)){ lastG=now; V.gantt.draw(); }
+    if(VIEW.selAct!=null&&(!play||now-lastS>250)){ lastS=now; renderSel(V); } });
+  V.cKey=null; updateModel(V,TL.t); hudUpdate(V); V._actSig=null; activePanel(V,true); if(V.gantt) V.gantt.draw();
   if(VIEW.pendingFocus!=null){ const id=VIEW.pendingFocus; VIEW.pendingFocus=null; const E=focusElemFor(V,id); if(E) selectElem(V,E,true,id); else renderSel(V); }
   else if(VIEW.sel!=null&&V.G.elems[VIEW.sel]) selectElem(V,V.G.elems[VIEW.sel],false,VIEW.focusAct);
   else if(VIEW.selAct!=null) selectAct(V,VIEW.selAct); else renderSel(V);
@@ -3399,6 +3452,7 @@ function exportPng(V){ drawNow(); const src=R3.canvas, c=document.createElement(
   g.fillText(`${P.m.projName} — ${fD(new Date(TL.t))}`,20*s,32*s); g.font=`${12.5*s}px Segoe UI, Arial`;
   g.fillText(`${VIEW.mode==='plan'?'As planned':VIEW.mode==='split'?'Split: planned | built':VIEW.mode==='variance'?'Variance':'As built / forecast'} · Planned ${pp==null?'—':pp.toFixed(1)+'%'} · ${pre?'Actual':'Forecast'} ${ap==null?'—':ap.toFixed(1)+'%'}`,20*s,52*s);
   if(FS) g.fillText(`${FS.c.built[2]} completed · ${FS.c.built[1]} in progress · ${FS.c.delayed} delayed`,20*s,70*s);
+  drawActiveOnCanvas(V,g,s,c.width);
   pngDownload(c,'4D-'+(P.m.projName||'model').replace(/[^A-Za-z0-9_-]+/g,'_')+'-'+fD(new Date(TL.t))+'.png'); }
 
 /* ========================================================================
