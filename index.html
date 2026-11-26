@@ -305,7 +305,7 @@ a.worst-i{text-decoration:none}
 <header class="app">
   <div class="brand"><div class="logo">P6</div>
     <div><h1>Primavera P6 — Schedule Analysis &amp; Review Dashboard</h1>
-    <div class="sub">Baseline &amp; update review · 4D model · Plan vs Actual · S-curves · KPIs · Logic audit · DCMA-14 · Word comments sheet</div></div></div>
+    <div class="sub">Baseline &amp; update review · 4D model (BIM / IFC) · Plan vs Actual · S-curves · KPIs · Logic audit · DCMA-14 · Word comments sheet</div></div></div>
   <div class="spacer"></div>
   <div class="author-chip"><span class="av">KT</span><span>Author&nbsp;<b>Eng. Karim Tarek</b></span></div>
   <button class="hbtn primary no-print" id="btnReport">📄 Generate Report</button>
@@ -340,6 +340,7 @@ a.worst-i{text-decoration:none}
     <button class="tab ext" data-tab="pva">Plan vs Actual</button>
     <button class="tab ext" data-tab="scx">📈 S-Curve (4D)</button>
     <button class="tab ext" data-tab="kpi">📊 KPIs</button>
+    <button class="tab ext" data-tab="bim">🏗 BIM (IFC)</button>
     <button class="tab ext" data-tab="mp">🗺 Masterplan</button>
     <button class="tab ext" data-tab="map">⚙ Mapping</button>
     <span class="tab-sep">|</span>
@@ -368,6 +369,7 @@ a.worst-i{text-decoration:none}
     <section class="view hidden" id="view-kpi"></section>
     <section class="view hidden" id="view-map"></section>
     <section class="view hidden" id="view-mp"></section>
+    <section class="view hidden" id="view-bim"></section>
 
   </div>
 </div>
@@ -2870,7 +2872,7 @@ function buildGeometry(P,MP){
   const elemOfAct=new Map(); elems.forEach(e=>elemOfAct.set(e.act,e.id));
   return { elems, parts, site, ymin, ymax, elemOfAct, groups:groups.size, layout:L, scale:s, placed:MP.blds.filter(b=>b.placed).length };
 }
-function elemWorld(e){ const b=e.b, cx=(e.bmin[0]+e.bmax[0])/2, cz=(e.bmin[2]+e.bmax[2])/2, c=Math.cos(b.rot), s=Math.sin(b.rot);
+function elemWorld(e){ if(e.ifc) return [(e.bmin[0]+e.bmax[0])/2,(e.bmin[1]+e.bmax[1])/2,(e.bmin[2]+e.bmax[2])/2]; const b=e.b, cx=(e.bmin[0]+e.bmax[0])/2, cz=(e.bmin[2]+e.bmax[2])/2, c=Math.cos(b.rot), s=Math.sin(b.rot);
   return [b.ox+cx*c+cz*s,(e.bmin[1]+e.bmax[1])/2,b.oz-cx*s+cz*c]; }
 
 /* ---------- 4D state engine (pure) ---------- */
@@ -2904,15 +2906,15 @@ function elemProg(e,arr){ let s=0; for(let k=0;k<e.acts.length;k++) s+=e.w[k]*ar
 /* ---------- persistent Three.js viewer ---------- */
 const VIEW={ mode:'built', colorBy:'status', ghost:true, shadows:false, labels:true, tlabels:true, follow:false, gantt:true, plan:true, planOpacity:0.95,
   gLinked:false, gActive:false, gQ:'', gCol:new Set(), gColKey:'', bFilter:'', floorFilter:'', tradeOff:new Set(),
-  slice:1, sel:null, selAct:null, focusAct:null, cam:null };
+  slice:1, useIfc:true, ifcCtx:true, sel:null, selAct:null, focusAct:null, cam:null };
 let R3=null;            // singleton renderer + persistent scene for the current model
 const C3D={ cur:null };  // current viewer model (V)
 function three(){ return (typeof window!=='undefined')?window.THREE:null; }
 function getModel(){
   const P=getPrep(); if(!P) return null;
-  const key=pid(P)+'|'+MAPVER;
+  const IMr=VIEW.useIfc?bimReady(P.m):null, key=pid(P)+'|'+MAPVER+'|'+(IMr?'ifc'+BIM.ver:'box');
   if(C3D.cur&&C3D.cur.key===key) return C3D.cur;
-  const MP=buildMapping(P), G=buildGeometry(P,MP), PROF=getProfiles(), PRGB={};
+  const MP=buildMapping(P), G=IMr?buildIfcGeometry(P,MP,IMr):buildGeometry(P,MP), PROF=getProfiles(), PRGB={};
   Object.keys(PROF).forEach(k=>{ PRGB[k]={active:hexToRgb(PROF[k].active),finish:hexToRgb(PROF[k].finish)}; });
   if(C3D.cur&&C3D.cur.dispose) C3D.cur.dispose();
   C3D.cur={key,P,MP,G,PROF,PRGB,scene:null,built:false,activeIds:[]}; VIEW.sel=null; VIEW.selAct=null;
@@ -2934,6 +2936,7 @@ function delayRgb(d){ if(d==null) return COL.grey; if(d<=0) return COL.green; co
   return t<0.5?[0.12+1.6*t*0.86,0.56+t*0.3,0.35-t*0.5]:[0.94-(t-0.5)*0.3,0.71-(t-0.5)*1.2,0.1]; }
 
 function buildScene(V){
+  if(V.G.ifc) return buildSceneIfc(V);
   const THREE=three(), {renderer}=ensureRenderer(), G=V.G, S0=G.site;
   const scene=new THREE.Scene(); scene.background=new THREE.Color(0xeef3f8);
   const cam=new THREE.PerspectiveCamera(45,1,0.5,50000);
@@ -3010,6 +3013,7 @@ function colorOf(V,e,sk,ph,pp,pb){
     default: if(delayed) return COL.red; if(ph==='active') return pr.active; return pr.finish; }
 }
 function updateModel(V,T){
+  if(V&&V.built&&V.G.ifc) return updateModelIfc(V,T);
   if(!V||!V.built) return; const P=V.P, G=V.G, FS=frameState(P,T), sliceY=G.ymin+(G.ymax-G.ymin)*VIEW.slice;
   V.plane.constant=sliceY+0.001;
   const mainSk=VIEW.mode==='plan'?'plan':'built', sets=VIEW.mode==='split'?['plan','built']:[mainSk];
@@ -3077,7 +3081,7 @@ function attachControls(cv){
 /* ---------- picking (ray in each building's local frame vs axis-aligned boxes) ---------- */
 function rayFromEvent(V,e){ const THREE=three(), rc=R3.canvas.getBoundingClientRect();
   const ray=new THREE.Raycaster(); ray.setFromCamera(new THREE.Vector2((e.clientX-rc.left)/rc.width*2-1,-(e.clientY-rc.top)/rc.height*2+1),V.cam); return ray.ray; }
-function pickAt(V,e){ const r=rayFromEvent(V,e), O=r.origin, Dr=r.direction, G=V.G, sliceY=G.ymin+(G.ymax-G.ymin)*VIEW.slice;
+function pickAt(V,e){ if(V.G.ifc) return pickIfc(V,e); const r=rayFromEvent(V,e), O=r.origin, Dr=r.direction, G=V.G, sliceY=G.ymin+(G.ymax-G.ymin)*VIEW.slice;
   let best=null, bt=Infinity;
   const sets=VIEW.mode==='split'?['plan','built']:[VIEW.mode==='plan'?'plan':'built'];
   sets.forEach(sk=>{ const S=V.sets[sk], off=S.off;
@@ -3095,9 +3099,11 @@ let tipEl=null, hovT=0;
 function hideTip(){ if(tipEl) tipEl.style.display='none'; }
 function hover(V,e){ const now=performance.now(); if(now-hovT<45) return; hovT=now; if(!tipEl||!tipEl.isConnected) return;
   const h=pickAt(V,e); if(!h){ hideTip(); R3.canvas.style.cursor='grab'; return; } R3.canvas.style.cursor='pointer';
+  if(h.e.ifc&&h.e.act<0){ const E=h.e; tipEl.innerHTML=`<b>${esc(E.ifcType)}</b> ${esc(E.ifcName)}<br/>${esc(E.storey||'—')} · <i>not scheduled</i> — ${esc(E.how||'')}`;
+    const hr=tipEl.parentNode.getBoundingClientRect(); tipEl.style.display='block'; tipEl.style.left=Math.min(hr.width-320,e.clientX-hr.left+14)+'px'; tipEl.style.top=(e.clientY-hr.top+14)+'px'; return; }
   const E=h.e, i=E.act, r=V.P.rows[i], FS=V.FS, pp=FS?FS.plan[i]:0, pb=FS?FS.built[i]:0, prof=V.PROF[E.trade];
   tipEl.innerHTML=`<b class="mono">${esc(r.code)}</b> ${esc(r.name)}<br/>
-    ${esc(E.b.name)} · ${E.rank==null?'building-wide':levelLabel(E.b.levels[E.rank])} · ${TRADE_BY[E.trade].label}${E.nZone>1?` · zone ${E.zone+1}/${E.nZone}`:''} · <i>${prof.type}</i><br/>
+    ${esc(E.b.name)} · ${E.ifc?esc(E.storey||'—')+' · <i>'+esc(E.ifcType)+'</i>':E.rank==null?'building-wide':levelLabel(E.b.levels[E.rank])} · ${TRADE_BY[E.trade].label}${E.nZone>1?` · zone ${E.zone+1}/${E.nZone}`:''} · <i>${prof.type}</i><br/>
     Planned ${(pp*100).toFixed(0)}% · As built/forecast ${(pb*100).toFixed(0)}%${pp>=0.999&&pb<0.999?' · <b style="color:#ff8f80">DELAYED</b>':''}${E.delay!=null?` · finish var ${E.delay>0?'+':''}${E.delay}d`:''}
     <br/><span style="opacity:.75">click to select · syncs the task list</span>`;
   const host=tipEl.parentNode.getBoundingClientRect(); tipEl.style.display='block';
@@ -3106,6 +3112,11 @@ function pick(V,e){ const h=pickAt(V,e); selectElem(V,h?h.e:null,false); }
 function selectElem(V,E,frame,focusAct){
   VIEW.sel=E?E.id:null; VIEW.selAct=E?E.act:null; VIEW.focusAct=focusAct||null;
   if(!E){ V.selBox.visible=false; renderSel(V); if(V.gantt) V.gantt.draw(); requestRender(); return; }
+  if(E.ifc){ const off=VIEW.mode==='plan'?V.sets.plan.off:V.sets.built.off, Ub=ifcUnion(V,E.act,E), M=V.tmpM;
+    M.makeScale(Ub.mx[0]-Ub.mn[0]+0.4,Ub.mx[1]-Ub.mn[1]+0.4,Ub.mx[2]-Ub.mn[2]+0.4); M.setPosition(Ub.mn[0]-0.2+off,Ub.mn[1]-0.2,Ub.mn[2]-0.2);
+    V.selBox.matrix.copy(M); V.selBox.matrixWorldNeedsUpdate=true; V.selBox.visible=true;
+    if(frame){ const k=VIEW.cam; k.tx=(Ub.mn[0]+Ub.mx[0])/2+off; k.ty=(Ub.mn[1]+Ub.mx[1])/2; k.tz=(Ub.mn[2]+Ub.mx[2])/2; k.r=Math.max(25,Math.hypot(Ub.mx[0]-Ub.mn[0],Ub.mx[1]-Ub.mn[1],Ub.mx[2]-Ub.mn[2])*1.6); applyCam(V); }
+    renderSel(V); if(V.gantt&&E.act>=0) V.gantt.reveal(E.act); requestRender(); return; }
   const off=VIEW.mode==='plan'?V.sets.plan.off:V.sets.built.off, M=V.tmpM;
   M.makeScale(E.bmax[0]-E.bmin[0]+0.4,E.bmax[1]-E.bmin[1]+0.4,E.bmax[2]-E.bmin[2]+0.4); M.setPosition(E.bmin[0]-0.2,E.bmin[1]-0.2,E.bmin[2]-0.2);
   M.premultiply(V.bm[E.b.idx]); V.offM.makeTranslation(off,0,0); M.premultiply(V.offM);
@@ -3117,19 +3128,21 @@ function selectAct(V,i){ const eid=V.G.elemOfAct.get(i); if(eid!=null){ selectEl
   VIEW.sel=null; VIEW.selAct=i; V.selBox.visible=false; renderSel(V); if(V.gantt) V.gantt.reveal(i); requestRender(); }
 function reasonOf(V,i){ if(!V._why){ V._why=new Map(); V.MP.unmapped.forEach(x=>V._why.set(x.i,x.reason)); V.MP.excluded.forEach(x=>V._why.set(x.i,x.reason)); } return V._why.get(i)||'not mapped'; }
 function renderSel(V){ const box=document.querySelector('#m4dSel'); if(!box) return;
-  const i=VIEW.selAct;
+  const i=VIEW.selAct, E0=VIEW.sel!=null?V.G.elems[VIEW.sel]:null;
+  const ifcInfo=E0&&E0.ifc?`<div class="banner-info" style="margin:0 0 8px">🏗 <b>BIM element:</b> ${esc(E0.ifcType)} · ${esc(E0.ifcName)} · ${esc(E0.storey||'—')} · <span class="mono">${esc(E0.gid||'')}</span>${E0.qty&&E0.qty.vol?` · ${fN(E0.qty.vol,2)} m³`:''}<br/>${E0.act>=0?`Linked by ${esc(E0.how)} · ${fN((V.G.elemsOfAct.get(E0.act)||[]).length)} model element(s) carry this activity`:`<b>Not scheduled</b> — ${esc(E0.how||'')}`}</div>`:'';
+  if((i==null||i<0||!V.P.rows[i])&&ifcInfo){ box.innerHTML=ifcInfo; return; }
   if(i==null||!V.P.rows[i]){ box.innerHTML='<div class="section-note" style="margin:0">Click an object in the 3D view or a task in the task list — they are linked both ways. Each 3D object is driven by exactly one activity.</div>'; return; }
   const P=V.P, r=P.rows[i], E=VIEW.sel!=null?V.G.elems[VIEW.sel]:null, FS=V.FS, pp=FS?FS.plan[i]:0, pb=FS?FS.built[i]:0;
   const dd=v=>v==null?'—':fD(new Date(v)), vr=(a,b)=>(a==null||b==null)?'—':vCell(Math.round((a-b)/DAY));
   const aS=r.as!=null?r.as:r.fs, aF=r.af!=null?r.af:r.ff, prof=E?V.PROF[E.trade]:null;
-  box.innerHTML=`<div class="m4d-selhead">${E?`<span class="sw" style="background:${TRADE_BY[E.trade].color}"></span><b>3D object:</b> ${esc(E.b.name)}${E.b.placed?' <span class="chip c-done">on masterplan</span>':''} · ${E.rank==null?'building-wide':levelLabel(E.b.levels[E.rank])} · ${TRADE_BY[E.trade].label}${E.nZone>1?` · zone ${E.zone+1} of ${E.nZone}`:''} · profile <i>${prof.type}</i>`
+  box.innerHTML=`<div class="m4d-selhead">${E?`<span class="sw" style="background:${TRADE_BY[E.trade].color}"></span><b>3D object:</b> ${esc(E.b.name)}${E.b.placed?' <span class="chip c-done">on masterplan</span>':''} · ${E.ifc?esc(E.storey||'—')+' · <i>'+esc(E.ifcType)+'</i>':E.rank==null?'building-wide':levelLabel(E.b.levels[E.rank])} · ${TRADE_BY[E.trade].label}${E.nZone>1?` · zone ${E.zone+1} of ${E.nZone}`:''} · profile <i>${prof.type}</i>`
       :`<span class="chip c-ns">Not linked to a 3D object</span> ${esc(reasonOf(V,i))}`}
      <span class="sp"></span>at ${fD(new Date(TL.t))}: planned <b>${(pp*100).toFixed(1)}%</b> · as built/forecast <b>${(pb*100).toFixed(1)}%</b>
      ${pp>=0.999&&pb<0.999?'<span class="chip c-crit">Delayed</span>':''}${r.crit?' <span class="chip c-crit">Critical</span>':''}</div>
    <div class="tbl-wrap"><table class="grid sm"><thead><tr><th class="no-sort">Activity</th><th class="no-sort">Name</th><th class="no-sort">Planned</th><th class="no-sort">Actual / forecast</th><th class="no-sort num">% phys</th><th class="no-sort num">TF (d)</th><th class="no-sort num">Start var</th><th class="no-sort num">Finish var</th></tr></thead><tbody>
      <tr><td><a href="#" class="lnk" data-act="${esc(r.id)}"><span class="mono">${esc(r.code)}</span></a></td><td>${esc(r.name)}</td><td>${dd(r.ps)} → ${dd(r.pf)}</td><td>${dd(aS)} → ${dd(aF)}</td>
        <td class="num">${fN(r.pct,0)}%</td><td class="num">${fN(r.tf,1)}</td><td class="num">${vr(aS,r.ps)}</td><td class="num">${vr(aF,r.pf)}</td></tr></tbody></table></div>
-   <div class="section-note" style="margin:6px 0 0">WBS: ${esc(P.W.chain(r.wbs).map(id=>(P.m.wbsById[id]||{}).name).join(' / ')||'—')}</div>`;
+   ${ifcInfo?'<div style="margin-top:8px">'+ifcInfo+'</div>':''}<div class="section-note" style="margin:6px 0 0">WBS: ${esc(P.W.chain(r.wbs).map(id=>(P.m.wbsById[id]||{}).name).join(' / ')||'—')}</div>`;
   U.wireActivityLinks(box); }
 /* ---------- render / labels / HUD ---------- */
 function requestRender(){ if(!R3||R3.pending) return; R3.pending=true; requestAnimationFrame(()=>{ R3.pending=false; drawNow(); }); }
@@ -3140,10 +3153,10 @@ function placeLabels(V){ const box=document.querySelector('#m4dLabels'); if(!box
   const proj=(x,y,z)=>{ v.set(x,y,z).project(V.cam); if(v.z>1) return null; const px=(v.x+1)/2*w, py=(1-v.y)/2*h; return (px<-60||px>w+60||py<-20||py>h+20)?null:[px,py]; };
   const sets=VIEW.mode==='split'?['plan','built']:[VIEW.mode==='plan'?'plan':'built'];
   if(VIEW.labels) sets.forEach(sk=>{ const off=V.sets[sk].off;
-    V.MP.blds.forEach(b=>{ if(VIEW.bFilter&&b.key!==VIEW.bFilter) return; const p=proj(b.ox+off,b.topY+4,b.oz); if(p) html+=`<div class="m4d-lbl" style="left:${p[0]}px;top:${p[1]}px">${esc(b.name)}</div>`; });
+    (V.G.ifc?V.G.ifcBlds:V.MP.blds).forEach(b=>{ if(VIEW.bFilter&&b.key!==VIEW.bFilter) return; const p=proj(b.ox+off,b.topY+4,b.oz); if(p) html+=`<div class="m4d-lbl" style="left:${p[0]}px;top:${p[1]}px">${esc(b.name)}</div>`; });
     if(VIEW.mode==='split'){ const p=proj(V.G.site.cx+off,V.G.ymax+14,V.G.site.minz); if(p) html+=`<div class="m4d-lbl big ${sk}" style="left:${p[0]}px;top:${p[1]}px">${sk==='plan'?'AS PLANNED':'AS BUILT / FORECAST'}</div>`; } });
   if(VIEW.tlabels&&V.activeIds&&V.activeIds.length){ const off=V.sets[VIEW.mode==='plan'?'plan':'built'].off;
-    V.activeIds.map(id=>V.G.elems[id]).sort((a,b)=>b.vol-a.vol).slice(0,12).forEach(e=>{ const r=V.P.rows[e.act], c=elemWorld(e);
+    V.activeIds.map(id=>V.G.elems[id]).sort((a,b)=>b.vol-a.vol).filter(function(e){ return this.has(e.act)?false:(this.add(e.act),true); },new Set()).slice(0,12).forEach(e=>{ const r=V.P.rows[e.act], c=elemWorld(e);
       const p=proj(c[0]+off,e.bmax[1]+0.5,c[2]); if(!p) return;
       const nm=r.name.length>34?r.name.slice(0,33)+'…':r.name;
       html+=`<div class="m4d-tlbl${VIEW.selAct===e.act?' sel':''}" style="left:${p[0]}px;top:${p[1]}px"><b>${esc(r.code)}</b> ${esc(nm)}</div>`; }); }
@@ -3172,6 +3185,7 @@ function renderM4d(host){
   host.appendChild(sourceBar(P));
   if(P.seqMin==null){ host.appendChild(empty('No dated activities found in this XER — nothing to build.')); return; }
   if(!three()){ host.appendChild(empty('The 3D library (Three.js r128) did not load. Check your internet connection and reload — the other tabs keep working offline.')); return; }
+  if(VIEW.useIfc&&!bimReady(P.m)&&!(BIM.key===bimKey(P.m)&&BIM.err)) imgGet(bimKey(P.m)).then(x=>{ if(x&&!bimReady(P.m)) loadBim(P.m).then(()=>{ if(STATE.activeTab==='m4d'&&bimReady(P.m)) U.show('m4d'); }); });
   let V; try{ V=getModel(); ensureRenderer(); }catch(err){ host.appendChild(empty('3D view unavailable: '+esc(err.message)+'. Your browser may not support WebGL.')); return; }
   tlInit(P);
   const MP=V.MP, unPct=MP.physical?MP.unmapped.length/MP.physical*100:0, S0=V.G.site;
@@ -3180,7 +3194,10 @@ function renderM4d(host){
     w.querySelector('a').addEventListener('click',ev=>{ ev.preventDefault(); U.show('map'); }); host.appendChild(w); }
   const nUnplaced=MP.blds.length-V.G.placed, DT=V.G.layout.detect;
   const detTxt=DT?` · auto-detected: <b>${DT.n.high}</b> high · <b>${DT.n.medium}</b> medium · <b>${DT.n.low}</b> low confidence${DT.n.none?` · <b>${DT.n.none}</b> not found`:''}`:'';
-  { const w=el('div',S0.hasPlan?(nUnplaced||(DT&&(DT.n.low||DT.n.none))?'banner-warn':'banner-info'):'banner-info');
+  if(V.G.ifc){ const LK=V.G.link, w=el('div',LK.nLinked/(LK.links.length||1)>=0.8?'banner-info':'banner-warn');
+    w.innerHTML=`🏗 <b>BIM model</b> ${esc(V.G.model.fileName||'')} · <b>${fN(LK.nLinked)}</b> of ${fN(LK.links.length)} Revit elements linked to activities (${fN(LK.nParam)} by Activity-ID parameter) · ${fN(LK.linkedActs.size)} of ${fN(MP.mapped.length)} activities have model elements. <a href="#">Review links →</a>`;
+    w.querySelector('a').addEventListener('click',ev=>{ ev.preventDefault(); U.show('bim'); }); host.appendChild(w); }
+  else { const w=el('div',S0.hasPlan?(nUnplaced||(DT&&(DT.n.low||DT.n.none))?'banner-warn':'banner-info'):'banner-info');
     w.innerHTML=S0.hasPlan
       ?`🗺 Masterplan active · <b>${V.G.placed} of ${MP.blds.length}</b> buildings / zones positioned${detTxt}${nUnplaced?` — the other ${nUnplaced} are shown beside the plan`:''}. Scale: ${V.G.layout.scale>0?`1 px = ${fN(V.G.scale,3)} m (${esc(V.G.layout.scaleSrc||'calibrated')})`:'<b>not set — sizes are approximate</b>'}. <a href="#" data-goto="mp">Review masterplan →</a>`
       :`🗺 No masterplan loaded — buildings are auto-arranged on a grid. <a href="#" data-goto="mp">Load the site masterplan</a> (DXF, PDF or image) and every building / zone is positioned automatically from its label on the drawing.`;
@@ -3207,7 +3224,8 @@ function renderM4d(host){
       <label><input type="checkbox" data-c="labels" ${VIEW.labels?'checked':''}/> Building labels</label>
       <label><input type="checkbox" data-c="shadow" ${VIEW.shadows?'checked':''}/> Shadows</label>
       ${S0.hasPlan?`<label><input type="checkbox" data-c="plan" ${VIEW.plan?'checked':''}/> Masterplan underlay</label><label>Opacity <input type="range" min="10" max="100" value="${Math.round(VIEW.planOpacity*100)}" data-c="pop" style="width:80px"/></label>`:''}
-      <button class="mini-btn" data-c="mped">🗺 Masterplan</button>
+      ${bimReady(P.m)?`<label><input type="checkbox" data-c="bim" ${VIEW.useIfc?'checked':''}/> BIM model</label><label><input type="checkbox" data-c="ictx" ${VIEW.ifcCtx?'checked':''}/> Unscheduled BIM elements</label>`:''}
+      <button class="mini-btn" data-c="bimgo">🏗 BIM</button><button class="mini-btn" data-c="mped">🗺 Masterplan</button>
       <span class="k4">Camera</span><button class="mini-btn" data-cam="iso">Iso</button><button class="mini-btn" data-cam="top">Top / plan</button><button class="mini-btn" data-cam="front">Front</button><button class="mini-btn" data-cam="side">Side</button>
       <select data-c="vp" style="max-width:150px"><option value="">Viewpoints (${vps.length})…</option>${vps.map((v,i)=>`<option value="${i}">${esc(v.name)}</option>`).join('')}${vps.length?'<option value="clear">— clear all —</option>':''}</select>
       <button class="mini-btn" data-c="vpsave">＋ Save view</button>
@@ -3243,6 +3261,9 @@ function renderM4d(host){
   const pc=pnl.querySelector('[data-c=plan]'); if(pc) pc.addEventListener('change',e=>{ VIEW.plan=e.target.checked; applyPlanTexture(V); });
   const po=pnl.querySelector('[data-c=pop]'); if(po) po.addEventListener('input',e=>{ VIEW.planOpacity=+e.target.value/100; applyPlanTexture(V); });
   pnl.querySelector('[data-c=mped]').addEventListener('click',()=>U.show('mp'));
+  pnl.querySelector('[data-c=bimgo]').addEventListener('click',()=>U.show('bim'));
+  const cb=pnl.querySelector('[data-c=bim]'); if(cb) cb.addEventListener('change',e=>{ VIEW.useIfc=e.target.checked; rr(); });
+  const cx=pnl.querySelector('[data-c=ictx]'); if(cx) cx.addEventListener('change',e=>{ VIEW.ifcCtx=e.target.checked; updateModel(V,TL.t); });
   pnl.querySelectorAll('[data-cam]').forEach(b=>b.addEventListener('click',()=>{ VIEW.follow=false; pnl.querySelector('[data-c=follow]').checked=false; fitCamera(V,b.dataset.cam); }));
   pnl.querySelector('[data-c=vp]').addEventListener('change',e=>{ const v=e.target.value; e.target.value='';
     if(v==='clear'){ if(confirm('Delete all saved viewpoints for this project?')){ lsSet(vpKey,[]); rr(); } return; }
@@ -4074,6 +4095,472 @@ function renderMp(host){
   renderReport(); renderList(); renderProp(); fit(); setTool(MPE.tool==='cal'&&L.imgW?'cal':'select');
   if(L.imgW) loadPlanImage(m).then(im=>{ img=im; if(!im) hintMsg('⚠ The masterplan image is not stored in this browser — load the file again.'); draw(); });
 }
+/* ========================================================================
+   🏗 BIM — IFC READER (Revit → File → Export → IFC). Self-contained: no external
+   library, runs offline. Reads the STEP file, the spatial tree (site → building
+   → storey), property sets / base quantities and the body geometry, and bakes
+   every element into world-space triangles (Y-up, metres, re-centred).
+   Supported geometry: extrusions (rectangle / circle / polyline / indexed /
+   composite profiles; steel sections as their bounding rectangle), faceted
+   B-reps, shell / face-based surface models, IFC4 triangulated & polygonal face
+   sets, mapped items (Revit families), boolean clipping (first operand =
+   element without its cut-outs), IfcBlock, swept-disk solids (pipes) and the
+   bounding-box representation as a last resort.
+   ======================================================================== */
+const IFC_SKIP=new Set(['IFCOPENINGELEMENT','IFCSPACE','IFCSITE','IFCBUILDING','IFCBUILDINGSTOREY','IFCPROJECT','IFCANNOTATION','IFCGRID','IFCVIRTUALELEMENT',
+  'IFCREINFORCINGBAR','IFCREINFORCINGMESH','IFCTENDON','IFCTENDONANCHOR','IFCZONE','IFCSPATIALZONE','IFCOPENINGSTANDARDCASE','IFCEXTERNALSPATIALELEMENT']);
+function ifcStr(s){ return s.replace(/\\X2\\([0-9A-Fa-f]+)\\X0\\/g,(m,h)=>{ let o=''; for(let i=0;i+3<h.length;i+=4) o+=String.fromCharCode(parseInt(h.substr(i,4),16)); return o; })
+  .replace(/\\X\\([0-9A-Fa-f]{2})/g,(m,h)=>String.fromCharCode(parseInt(h,16))).replace(/\\S\\(.)/g,(m,c)=>String.fromCharCode(c.charCodeAt(0)+128)).replace(/''/g,"'"); }
+// ---- STEP tokenizer: index every "#id=TYPE(...);" record, parse arguments lazily
+function ifcIndex(text){
+  const ent=new Map(), byType=new Map(); let i=text.indexOf('DATA;'); if(i<0) throw new Error('This is not an IFC (STEP) file — the DATA section is missing.');
+  const head=text.slice(0,i), sm=head.match(/FILE_SCHEMA\s*\(\s*\(\s*'([^']+)'/i), schema=sm?sm[1].toUpperCase():'IFC';
+  const n=text.length; i+=5;
+  while(i<n){ let c=text.charCodeAt(i);
+    if(c!==35){ if(text.startsWith('ENDSEC',i)) break; i++; continue; }          // '#'
+    let j=i+1, id=0; while(j<n){ c=text.charCodeAt(j); if(c<48||c>57) break; id=id*10+(c-48); j++; }
+    while(j<n&&text.charCodeAt(j)!==61) j++; j++;                                 // '='
+    while(j<n&&text.charCodeAt(j)<=32) j++;
+    let k=j; while(k<n){ c=text.charCodeAt(k); if(c===40||c<=32) break; k++; }    // '('
+    const type=text.slice(j,k).toUpperCase(); while(k<n&&text.charCodeAt(k)!==40) k++;
+    let d=0, q=false, e=k;
+    for(;e<n;e++){ c=text.charCodeAt(e);
+      if(q){ if(c===39){ if(text.charCodeAt(e+1)===39) e++; else q=false; } continue; }
+      if(c===39) q=true; else if(c===40) d++; else if(c===41){ d--; if(d===0) break; } }
+    ent.set(id,{t:type,s:k,e,a:null}); let L=byType.get(type); if(!L){ L=[]; byType.set(type,L); } L.push(id);
+    i=e+1; }
+  return {text,ent,byType,schema};
+}
+function ifcArgs(M,id){ const r=M.ent.get(id); if(!r) return null; if(r.a) return r.a;
+  const T=M.text; let p=r.s;
+  function val(){ while(T.charCodeAt(p)<=32) p++; const c=T[p];
+    if(c==='('){ p++; const out=[]; while(true){ while(T.charCodeAt(p)<=32) p++; if(T[p]===')'){ p++; return out; } out.push(val()); while(T.charCodeAt(p)<=32) p++; if(T[p]===',') p++; } }
+    if(c==='#'){ p++; let v=0; while(p<T.length){ const d=T.charCodeAt(p); if(d<48||d>57) break; v=v*10+d-48; p++; } return {r:v}; }
+    if(c==="'"){ let s=++p; while(true){ if(T[p]==="'"){ if(T[p+1]==="'"){ p+=2; continue; } break; } p++; } const str=T.slice(s,p); p++; return ifcStr(str); }
+    if(c==='$'||c==='*'){ p++; return null; }
+    if(c==='.'){ const s=++p; while(T[p]!=='.') p++; const v=T.slice(s,p); p++; return {e:v}; }
+    if((c>='A'&&c<='Z')||(c>='a'&&c<='z')){ const s=p; while(/[A-Za-z0-9_]/.test(T[p])) p++; const nm=T.slice(s,p).toUpperCase(); while(T.charCodeAt(p)<=32) p++;
+      if(T[p]==='('){ p++; const v=val(); while(T[p]!==')') p++; p++; return {tv:nm,v}; } return {e:nm}; }
+    const s=p; while(p<T.length&&/[-+0-9.Ee]/.test(T[p])) p++; return parseFloat(T.slice(s,p)); }
+  const a=val(); r.a=a; return a; }
+const ifcT=(M,ref)=>{ if(!ref||ref.r==null) return null; const r=M.ent.get(ref.r); return r?r.t:null; };
+const ifcA=(M,ref)=>(ref&&ref.r!=null)?ifcArgs(M,ref.r):null;
+const tvv=v=>(v&&v.tv)?v.v:v;
+/* ---------- 4x4 matrices (column-major) ---------- */
+const MI=()=>[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
+function mMul(a,b){ const r=new Array(16); for(let i=0;i<4;i++) for(let j=0;j<4;j++){ let s=0; for(let k=0;k<4;k++) s+=a[k*4+i]*b[j*4+k]; r[j*4+i]=s; } return r; }
+function mApply(m,x,y,z){ return [m[0]*x+m[4]*y+m[8]*z+m[12],m[1]*x+m[5]*y+m[9]*z+m[13],m[2]*x+m[6]*y+m[10]*z+m[14]]; }
+function vNorm(v){ const l=Math.hypot(v[0],v[1],v[2])||1; return [v[0]/l,v[1]/l,v[2]/l]; }
+function vCross(a,b){ return [a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]]; }
+function basisM(o,X,Z){ Z=vNorm(Z); let d=X[0]*Z[0]+X[1]*Z[1]+X[2]*Z[2]; X=vNorm([X[0]-d*Z[0],X[1]-d*Z[1],X[2]-d*Z[2]]);
+  if(!isFinite(X[0])||Math.hypot(...X)<0.5) X=Math.abs(Z[0])<0.9?vNorm(vCross([0,1,0],Z)):vNorm(vCross([0,0,1],Z)); const Y=vCross(Z,X);
+  return [X[0],X[1],X[2],0,Y[0],Y[1],Y[2],0,Z[0],Z[1],Z[2],0,o[0],o[1],o[2],1]; }
+/* ---------- polygon triangulation (ear clipping, 2D) ---------- */
+function triangulate2(P){ const n=P.length; if(n<3) return []; let A=0; for(let i=0,j=n-1;i<n;j=i++) A+=(P[j][0]-P[i][0])*(P[j][1]+P[i][1]);
+  const idx=[]; for(let i=0;i<n;i++) idx.push(A>0?i:n-1-i);                       // make CCW
+  const out=[], cr=(a,b,c)=>(P[b][0]-P[a][0])*(P[c][1]-P[a][1])-(P[b][1]-P[a][1])*(P[c][0]-P[a][0]);
+  const inT=(p,a,b,c)=>cr(a,b,p)>=0&&cr(b,c,p)>=0&&cr(c,a,p)>=0;
+  let guard=n*n+10;
+  while(idx.length>3&&guard-->0){ let cut=false;
+    for(let k=0;k<idx.length;k++){ const a=idx[(k+idx.length-1)%idx.length], b=idx[k], c=idx[(k+1)%idx.length]; if(cr(a,b,c)<=1e-12) continue;
+      let ok=true; for(const q of idx){ if(q===a||q===b||q===c) continue; if(inT(q,a,b,c)){ ok=false; break; } }
+      if(ok){ out.push([a,b,c]); idx.splice(k,1); cut=true; break; } }
+    if(!cut){ for(let k=1;k<idx.length-1;k++) out.push([idx[0],idx[k],idx[k+1]]); return out; } }   // degenerate → fan
+  if(idx.length===3) out.push([idx[0],idx[1],idx[2]]); return out; }
+function cleanPoly(P){ const o=[]; for(const p of P){ const l=o[o.length-1]; if(!l||Math.hypot(p[0]-l[0],p[1]-l[1])>1e-9) o.push(p); }
+  if(o.length>2&&Math.hypot(o[0][0]-o[o.length-1][0],o[0][1]-o[o.length-1][1])<1e-9) o.pop(); return o; }
+/* ---------- geometry evaluation ---------- */
+function ifcGeom(M,unit){
+  const memo=new Map();
+  const pt=ref=>{ const a=ifcA(M,ref); if(!a) return [0,0,0]; const c=a[0]||[]; return [(c[0]||0)*unit,(c[1]||0)*unit,(c[2]||0)*unit]; };
+  const dir=ref=>{ const a=ifcA(M,ref); if(!a) return null; const c=a[0]||[]; return [c[0]||0,c[1]||0,c[2]||0]; };
+  function ax3(ref){ if(!ref) return MI(); const a=ifcA(M,ref); if(!a) return MI(); const t=ifcT(M,ref);
+    if(t==='IFCAXIS2PLACEMENT2D'){ const o=pt(a[0]), x=a[1]?dir(a[1]):[1,0,0]; return basisM([o[0],o[1],0],[x[0],x[1],0],[0,0,1]); }
+    return basisM(pt(a[0]),a[2]?dir(a[2]):[1,0,0],a[1]?dir(a[1]):[0,0,1]); }
+  function placement(ref){ if(!ref) return MI(); const k=ref.r; if(memo.has(k)) return memo.get(k);
+    let m=MI(); const t=ifcT(M,ref), a=ifcA(M,ref);
+    if(t==='IFCLOCALPLACEMENT'&&a){ const rel=a[0]?placement(a[0]):MI(); m=mMul(rel,ax3(a[1])); }
+    memo.set(k,m); return m; }
+  function cto(ref){ const a=ifcA(M,ref), t=ifcT(M,ref); if(!a) return MI();
+    const X=a[0]?vNorm(dir(a[0])):[1,0,0], o=pt(a[2]), s=a[3]==null?1:a[3]; let Z=(a[4]?vNorm(dir(a[4])):[0,0,1]);
+    const s2=t==='IFCCARTESIANTRANSFORMATIONOPERATOR3DNONUNIFORM'?(a[5]==null?s:a[5]):s, s3=t==='IFCCARTESIANTRANSFORMATIONOPERATOR3DNONUNIFORM'?(a[6]==null?s:a[6]):s;
+    const B=basisM(o,X,Z); for(let i=0;i<3;i++){ B[i]*=s; B[4+i]*=s2; B[8+i]*=s3; } return B; }
+  function curvePts(ref){ const t=ifcT(M,ref), a=ifcA(M,ref); if(!a) return [];
+    if(t==='IFCPOLYLINE') return a[0].map(r=>pt(r));
+    if(t==='IFCINDEXEDPOLYCURVE'){ const L=ifcA(M,a[0]), C=(L&&L[0])||[]; return C.map(c=>[(c[0]||0)*unit,(c[1]||0)*unit,(c[2]||0)*unit]); }
+    if(t==='IFCCOMPOSITECURVE'){ const out=[]; for(const s of (a[0]||[])){ const sa=ifcA(M,s); if(!sa) continue; let p=curvePts(sa[2]); if(sa[1]&&sa[1].e==='F') p=p.slice().reverse(); out.push(...p); } return out; }
+    if(t==='IFCTRIMMEDCURVE'){ const basis=a[0], tb=ifcT(M,basis), ba=ifcA(M,basis), t1=(a[1]||[]).find(x=>x&&x.r!=null), t2=(a[2]||[]).find(x=>x&&x.r!=null);
+      if(tb==='IFCCIRCLE'&&ba){ const P=ax3(ba[0]), R=ba[1]*unit, p1=(a[1]||[]).find(x=>x&&x.tv), p2=(a[2]||[]).find(x=>x&&x.tv);
+        if(p1&&p2){ let A=p1.v*Math.PI/180, B=p2.v*Math.PI/180; if(Math.abs(p1.v)<=7&&Math.abs(p2.v)<=7&&!(Math.abs(p1.v)>6.3)){ A=p1.v; B=p2.v; }
+          if(a[3]===false||(a[3]&&a[3].e==='F')){ const x=A; A=B; B=x; } if(B<A) B+=Math.PI*2; const o=[]; const N=Math.max(2,Math.ceil((B-A)/(Math.PI/12)));
+          for(let i=0;i<=N;i++){ const u=A+(B-A)*i/N; o.push(mApply(P,R*Math.cos(u),R*Math.sin(u),0)); } return o; } }
+      const o=[]; if(t1) o.push(pt(t1)); if(t2) o.push(pt(t2)); return o; }
+    if(t==='IFCCIRCLE'){ const P=ax3(a[0]), R=a[1]*unit, o=[]; for(let i=0;i<24;i++){ const u=i/24*Math.PI*2; o.push(mApply(P,R*Math.cos(u),R*Math.sin(u),0)); } return o; }
+    if(t==='IFCLINE') return [pt(a[0])];
+    return []; }
+  function profile(ref){ const t=ifcT(M,ref), a=ifcA(M,ref); if(!a) return null;
+    const pos=(i)=>a[i]?ax3(a[i]):MI(), rect=(P,w,h)=>[[-w/2,-h/2],[w/2,-h/2],[w/2,h/2],[-w/2,h/2]].map(q=>{ const r=mApply(P,q[0],q[1],0); return [r[0],r[1]]; });
+    switch(t){
+      case 'IFCRECTANGLEPROFILEDEF': case 'IFCRECTANGLEHOLLOWPROFILEDEF': case 'IFCROUNDEDRECTANGLEPROFILEDEF': return {pts:rect(pos(2),a[3]*unit,a[4]*unit)};
+      case 'IFCCIRCLEPROFILEDEF': case 'IFCCIRCLEHOLLOWPROFILEDEF': { const P=pos(2), R=a[3]*unit, o=[]; for(let i=0;i<16;i++){ const u=i/16*Math.PI*2, r=mApply(P,R*Math.cos(u),R*Math.sin(u),0); o.push([r[0],r[1]]); } return {pts:o}; }
+      case 'IFCELLIPSEPROFILEDEF': { const P=pos(2), o=[]; for(let i=0;i<16;i++){ const u=i/16*Math.PI*2, r=mApply(P,a[3]*unit*Math.cos(u),a[4]*unit*Math.sin(u),0); o.push([r[0],r[1]]); } return {pts:o}; }
+      case 'IFCISHAPEPROFILEDEF': case 'IFCASYMMETRICISHAPEPROFILEDEF': return {pts:rect(pos(2),a[3]*unit,a[4]*unit),approx:true};
+      case 'IFCLSHAPEPROFILEDEF': case 'IFCCSHAPEPROFILEDEF': return {pts:rect(pos(2),(a[4]||a[3])*unit,a[3]*unit),approx:true};
+      case 'IFCUSHAPEPROFILEDEF': case 'IFCTSHAPEPROFILEDEF': case 'IFCZSHAPEPROFILEDEF': return {pts:rect(pos(2),a[4]*unit,a[3]*unit),approx:true};
+      case 'IFCARBITRARYCLOSEDPROFILEDEF': case 'IFCARBITRARYPROFILEDEFWITHVOIDS': return {pts:curvePts(a[2]).map(p=>[p[0],p[1]])};
+      case 'IFCDERIVEDPROFILEDEF': { const p=profile(a[2]); if(!p) return null; const T=a[3]?cto(a[3]):MI(); return {pts:p.pts.map(q=>{ const r=mApply(T,q[0],q[1],0); return [r[0],r[1]]; }),approx:p.approx}; }
+      default: return null; } }
+  // triangle sink (local coordinates) → array of flat xyz
+  function extrude(pts2,P,dirv,depth,out){ const pts=cleanPoly(pts2); if(pts.length<3||!(depth>0)) return false;
+    const D=vNorm(dirv||[0,0,1]); const tri=triangulate2(pts), V=(p,h)=>mApply(P,p[0]+D[0]*h,p[1]+D[1]*h,D[2]*h);
+    const bot=pts.map(p=>V(p,0)), top=pts.map(p=>V(p,depth));
+    for(const t of tri){ out.push(...bot[t[0]],...bot[t[2]],...bot[t[1]],...top[t[0]],...top[t[1]],...top[t[2]]); }
+    for(let i=0;i<pts.length;i++){ const j=(i+1)%pts.length; out.push(...bot[i],...bot[j],...top[j],...bot[i],...top[j],...top[i]); }
+    return true; }
+  function polyFace(P3,out){ const n=P3.length; if(n<3) return; if(n===3){ out.push(...P3[0],...P3[1],...P3[2]); return; }
+    let nx=0,ny=0,nz=0; for(let i=0;i<n;i++){ const a=P3[i], b=P3[(i+1)%n]; nx+=(a[1]-b[1])*(a[2]+b[2]); ny+=(a[2]-b[2])*(a[0]+b[0]); nz+=(a[0]-b[0])*(a[1]+b[1]); }
+    const ax=Math.abs(nx),ay=Math.abs(ny),az=Math.abs(nz), proj=az>=ax&&az>=ay?p=>[p[0],p[1]]:ax>=ay?p=>[p[1],p[2]]:p=>[p[2],p[0]];
+    const flip=(az>=ax&&az>=ay?nz:ax>=ay?nx:ny)<0, P2=P3.map(proj), tri=triangulate2(P2);
+    for(const t of tri){ const a=P3[t[0]], b=P3[t[1]], c=P3[t[2]]; if(flip) out.push(...a,...c,...b); else out.push(...a,...b,...c); } }
+  function faces(list,out){ for(const f of (list||[])){ const fa=ifcA(M,f); if(!fa) continue; const bs=fa[0]||[];
+      let ob=bs.find(b=>ifcT(M,b)==='IFCFACEOUTERBOUND')||bs[0]; const ba=ifcA(M,ob); if(!ba) continue; const la=ifcA(M,ba[0]); if(!la||ifcT(M,ba[0])!=='IFCPOLYLOOP') continue;
+      let P=la[0].map(r=>pt(r)); if(ba[1]&&ba[1].e==='F') P=P.reverse(); polyFace(P,out); } }
+  function item(ref,out,stats,depth){ if(depth>8) return; const t=ifcT(M,ref), a=ifcA(M,ref); if(!a) return;
+    switch(t){
+      case 'IFCEXTRUDEDAREASOLID': case 'IFCEXTRUDEDAREASOLIDTAPERED': { const pr=profile(a[0]); if(!pr){ stats.unsup[ifcT(M,a[0])]=(stats.unsup[ifcT(M,a[0])]||0)+1; return; }
+        if(pr.approx) stats.approx++; extrude(pr.pts,a[1]?ax3(a[1]):MI(),a[2]?dir(a[2]):[0,0,1],a[3]*unit,out); return; }
+      case 'IFCFACETEDBREP': case 'IFCFACETEDBREPWITHVOIDS': case 'IFCADVANCEDBREP': { const sh=ifcA(M,a[0]); if(sh) faces(sh[0],out); return; }
+      case 'IFCSHELLBASEDSURFACEMODEL': for(const s of (a[0]||[])){ const sh=ifcA(M,s); if(sh) faces(sh[0],out); } return;
+      case 'IFCFACEBASEDSURFACEMODEL': for(const s of (a[0]||[])){ const sh=ifcA(M,s); if(sh) faces(sh[0],out); } return;
+      case 'IFCTRIANGULATEDFACESET': case 'IFCTRIANGULATEDIRREGULARNETWORK': { const C=(ifcA(M,a[0])||[])[0]||[], I=a[3]||[];
+        for(const tr of I){ const p=tr.map(k=>{ const c=C[k-1]||[0,0,0]; return [c[0]*unit,c[1]*unit,(c[2]||0)*unit]; }); out.push(...p[0],...p[1],...p[2]); } return; }
+      case 'IFCPOLYGONALFACESET': { const C=(ifcA(M,a[0])||[])[0]||[];
+        for(const f of (a[2]||[])){ const fa=ifcA(M,f); if(!fa) continue; polyFace(fa[0].map(k=>{ const c=C[k-1]||[0,0,0]; return [c[0]*unit,c[1]*unit,(c[2]||0)*unit]; }),out); } return; }
+      case 'IFCMAPPEDITEM': { const src=ifcA(M,a[0]); if(!src) return; const T=mMul(a[1]?cto(a[1]):MI(),ax3(src[0])), sub=[]; const rep=ifcA(M,src[1]);
+        for(const it of ((rep&&rep[3])||[])) item(it,sub,stats,depth+1);
+        for(let i=0;i<sub.length;i+=3){ const r=mApply(T,sub[i],sub[i+1],sub[i+2]); out.push(r[0],r[1],r[2]); } return; }
+      case 'IFCBOOLEANCLIPPINGRESULT': case 'IFCBOOLEANRESULT': item(a[1],out,stats,depth+1); if(a[0]&&a[0].e==='UNION') item(a[2],out,stats,depth+1); else stats.cuts++; return;
+      case 'IFCCSGSOLID': item(a[0],out,stats,depth+1); return;
+      case 'IFCBLOCK': { const P=ax3(a[0]), X=a[1]*unit, Y=a[2]*unit, Z=a[3]*unit; extrude([[0,0],[X,0],[X,Y],[0,Y]],P,[0,0,1],Z,out); return; }
+      case 'IFCBOUNDINGBOX': { const c=pt(a[0]); extrude([[c[0],c[1]],[c[0]+a[1]*unit,c[1]],[c[0]+a[1]*unit,c[1]+a[2]*unit],[c[0],c[1]+a[2]*unit]],[1,0,0,0,0,1,0,0,0,0,1,0,0,0,c[2],1],[0,0,1],a[3]*unit,out); stats.boxOnly++; return; }
+      case 'IFCSWEPTDISKSOLID': case 'IFCSWEPTDISKSOLIDPOLYGONAL': { const P=curvePts(a[0]), R=(a[1]||0.01)*unit; for(let i=0;i+1<P.length;i++){ const A=P[i],B=P[i+1], d=[B[0]-A[0],B[1]-A[1],B[2]-A[2]], L=Math.hypot(...d); if(L<1e-9) continue;
+          extrude([[-R,-R],[R,-R],[R,R],[-R,R]],basisM(A,Math.abs(d[2]/L)<0.9?vCross([0,0,1],d):[1,0,0],d),[0,0,1],L,out); } return; }
+      default: stats.unsup[t]=(stats.unsup[t]||0)+1; } }
+  function body(repRef,stats){ const pd=ifcA(M,repRef); if(!pd) return null; const reps=(pd[2]||[]).map(r=>({r,a:ifcA(M,r)})).filter(x=>x.a);
+    const rank=x=>{ const id=(x.a[1]||'').toLowerCase(), ty=(x.a[2]||'').toLowerCase(); if(id==='body') return 0; if(id==='facetation'||ty==='brep'||ty==='sweptsolid'||ty==='mappedrepresentation'||ty==='tessellation') return 1; if(id==='box'||ty==='boundingbox') return 3; if(id==='axis'||id==='footprint'||ty==='curve2d'||ty==='geometricset'||ty==='annotation2d') return 9; return 2; };
+    reps.sort((x,y)=>rank(x)-rank(y)); for(const x of reps){ if(rank(x)>=9) break; const out=[]; for(const it of (x.a[3]||[])) item(it,out,stats,0); if(out.length) return out; }
+    return null; }
+  return {placement,body}; }
+/* ---------- full model ---------- */
+function ifcUnit(M){ let f=1;
+  for(const id of (M.byType.get('IFCSIUNIT')||[])){ const a=ifcArgs(M,id); if(a&&a[1]&&a[1].e==='LENGTHUNIT'){ const pre=a[2]&&a[2].e; f=pre==='MILLI'?0.001:pre==='CENTI'?0.01:pre==='DECI'?0.1:pre==='KILO'?1000:1; break; } }
+  for(const id of (M.byType.get('IFCCONVERSIONBASEDUNIT')||[])){ const a=ifcArgs(M,id); if(a&&a[1]&&a[1].e==='LENGTHUNIT'){ const nm=String(a[2]||'').toUpperCase(); if(/FOOT|FEET/.test(nm)) f=0.3048; else if(/INCH/.test(nm)) f=0.0254; } }
+  return f; }
+async function ifcRead(text,onProg){
+  const tick=async(m)=>{ if(onProg) onProg(m); await new Promise(r=>setTimeout(r,0)); };
+  await tick('Indexing the IFC file…'); const M=ifcIndex(text), unit=ifcUnit(M), G=ifcGeom(M,unit);
+  // spatial tree
+  const parent=new Map(), contained=new Map();
+  for(const id of (M.byType.get('IFCRELAGGREGATES')||[])){ const a=ifcArgs(M,id); if(!a||!a[4]) continue; for(const c of (a[5]||[])) if(c) parent.set(c.r,a[4].r); }
+  for(const id of (M.byType.get('IFCRELNESTS')||[])){ const a=ifcArgs(M,id); if(!a||!a[4]) continue; for(const c of (a[5]||[])) if(c&&!parent.has(c.r)) parent.set(c.r,a[4].r); }
+  for(const id of (M.byType.get('IFCRELCONTAINEDINSPATIALSTRUCTURE')||[])){ const a=ifcArgs(M,id); if(!a||!a[5]) continue; for(const c of (a[4]||[])) if(c) contained.set(c.r,a[5].r); }
+  const up=id=>contained.has(id)?contained.get(id):parent.get(id);
+  const storeys=new Map(), buildings=new Map();
+  for(const id of (M.byType.get('IFCBUILDING')||[])){ const a=ifcArgs(M,id); buildings.set(id,{id,name:a[2]||a[7]||('Building #'+id),long:a[7]||'',gid:a[0]}); }
+  for(const id of (M.byType.get('IFCBUILDINGSTOREY')||[])){ const a=ifcArgs(M,id); let b=parent.get(id), g=0; while(b!=null&&!buildings.has(b)&&g++<10) b=parent.get(b);
+    const pm=G.placement(a[5]); storeys.set(id,{id,name:a[2]||a[7]||('Storey #'+id),long:a[7]||'',elev:a[9]!=null?a[9]*unit:pm[14],z:pm[14],bld:buildings.has(b)?b:null}); }
+  // property sets + quantities
+  await tick('Reading parameters and quantities…');
+  const props=new Map(), qty=new Map();
+  for(const id of (M.byType.get('IFCRELDEFINESBYPROPERTIES')||[])){ const a=ifcArgs(M,id); if(!a||!a[5]) continue; const pt=ifcT(M,a[5]), pa=ifcA(M,a[5]); if(!pa) continue;
+    if(pt==='IFCPROPERTYSET'){ const P={}; for(const pr of (pa[4]||[])){ const x=ifcA(M,pr); if(!x||ifcT(M,pr)!=='IFCPROPERTYSINGLEVALUE') continue; const v=tvv(x[2]); if(v==null) continue; P[String(x[0])]=(v&&v.e)?v.e:v; }
+      for(const o of (a[4]||[])){ if(!o) continue; const t=props.get(o.r)||{}; Object.assign(t,P); props.set(o.r,t); } }
+    else if(pt==='IFCELEMENTQUANTITY'){ const Q={}; for(const q of (pa[5]||[])){ const x=ifcA(M,q), qt=ifcT(M,q); if(!x) continue;
+        if(qt==='IFCQUANTITYVOLUME') Q.vol=Math.max(Q.vol||0,(x[3]||0)*unit*unit*unit); else if(qt==='IFCQUANTITYAREA') Q.area=Math.max(Q.area||0,(x[3]||0)*unit*unit); else if(qt==='IFCQUANTITYLENGTH') Q.len=Math.max(Q.len||0,(x[3]||0)*unit); }
+      for(const o of (a[4]||[])){ if(!o) continue; qty.set(o.r,Object.assign(qty.get(o.r)||{},Q)); } } }
+  // elements + geometry
+  const cand=[]; for(const [id,r] of M.ent){ if(IFC_SKIP.has(r.t)||!r.t.startsWith('IFC')) continue; const c=M.text.charCodeAt(r.s+1); if(c!==39) continue;   // products start with a GlobalId string
+    cand.push(id); }
+  const els=[], stats={approx:0,cuts:0,boxOnly:0,unsup:{},noGeom:0}; let n=0;
+  for(const id of cand){ const a=ifcArgs(M,id); if(!a||a.length<7||!a[5]||!a[6]||ifcT(M,a[5])!=='IFCLOCALPLACEMENT'||ifcT(M,a[6])!=='IFCPRODUCTDEFINITIONSHAPE') continue;
+    if(++n%400===0) await tick(`Building geometry… ${n.toLocaleString()} elements`);
+    const loc=G.body(a[6],stats); if(!loc){ stats.noGeom++; continue; }
+    const P=G.placement(a[5]), tri=new Float64Array(loc.length);
+    for(let i=0;i<loc.length;i+=3){ const r=mApply(P,loc[i],loc[i+1],loc[i+2]); tri[i]=r[0]; tri[i+1]=r[2]; tri[i+2]=-r[1]; }   // Z-up → Y-up
+    let s=up(id), g=0; while(s!=null&&!storeys.has(s)&&!buildings.has(s)&&g++<10) s=up(s);
+    const st=storeys.get(s), bl=st?st.bld:(buildings.has(s)?s:null);
+    els.push({id,gid:a[0],type:M.ent.get(id).t,name:a[2]||'',otype:a[4]||'',tag:a[7]||'',pdt:(a[8]&&a[8].e)||'',storey:st?st.id:null,bld:bl,props:props.get(id)||{},qty:qty.get(id)||{},tri}); }
+  // re-centre (survey coordinates are too large for float32)
+  let x0=Infinity,x1=-Infinity,z0=Infinity,z1=-Infinity,y0=Infinity;
+  els.forEach(e=>{ const t=e.tri; let a=Infinity,b=-Infinity,c=Infinity,d=-Infinity,f=Infinity,g=-Infinity,h=Infinity,k=-Infinity,m=Infinity,o=-Infinity;
+    for(let i=0;i<t.length;i+=3){ const x=t[i],y=t[i+1],z=t[i+2]; if(x<a)a=x; if(x>b)b=x; if(y<c)c=y; if(y>d)d=y; if(z<f)f=z; if(z>g)g=z; }
+    e.bb=[a,c,f,b,d,g]; if(a<x0)x0=a; if(b>x1)x1=b; if(f<z0)z0=f; if(g>z1)z1=g; if(c<y0)y0=c; });
+  const off=els.length?[Math.round((x0+x1)/2),0,Math.round((z0+z1)/2)]:[0,0,0];
+  els.forEach(e=>{ const t=e.tri; for(let i=0;i<t.length;i+=3){ t[i]-=off[0]; t[i+2]-=off[2]; } e.bb[0]-=off[0]; e.bb[3]-=off[0]; e.bb[2]-=off[2]; e.bb[5]-=off[2]; e.tri=Float32Array.from(t); });
+  return {schema:M.schema,unit,els,storeys:[...storeys.values()],buildings:[...buildings.values()],offset:off,stats,candidates:cand.length}; }
+/* ---------- link IFC elements to schedule activities ---------- */
+const IFC_TRADE={IFCFOOTING:'foundation',IFCPILE:'foundation',IFCCOLUMN:'columns',IFCCOLUMNSTANDARDCASE:'columns',IFCBEAM:'slab',IFCBEAMSTANDARDCASE:'slab',
+  IFCSLAB:'slab',IFCSLABSTANDARDCASE:'slab',IFCSLABELEMENTEDCASE:'slab',IFCROOF:'roof',IFCWALL:'walls',IFCWALLSTANDARDCASE:'walls',IFCWALLELEMENTEDCASE:'walls',
+  IFCCURTAINWALL:'facade',IFCPLATE:'facade',IFCPLATESTANDARDCASE:'facade',IFCWINDOW:'facade',IFCWINDOWSTANDARDCASE:'facade',IFCMEMBER:'facade',IFCMEMBERSTANDARDCASE:'facade',
+  IFCDOOR:'finishes',IFCDOORSTANDARDCASE:'finishes',IFCCOVERING:'finishes',IFCSTAIR:'finishes',IFCSTAIRFLIGHT:'finishes',IFCRAMP:'finishes',IFCRAMPFLIGHT:'finishes',
+  IFCRAILING:'finishes',IFCFURNISHINGELEMENT:'finishes',IFCFURNITURE:'finishes',IFCSYSTEMFURNITUREELEMENT:'finishes',
+  IFCGEOGRAPHICELEMENT:'external',IFCCIVILELEMENT:'external',IFCCHIMNEY:'walls',IFCSHADINGDEVICE:'facade'};
+function ifcTradeOf(e,CR){
+  if(e.type==='IFCSLAB'||e.type==='IFCSLABSTANDARDCASE'){ if(e.pdt==='ROOF') return 'roof'; if(e.pdt==='BASESLAB') return 'foundation'; }
+  if((e.type==='IFCWALL'||e.type==='IFCWALLSTANDARDCASE')&&/curtain|glaz|cladd|facade|façade/i.test(e.name+' '+e.otype)) return 'facade';
+  const t=IFC_TRADE[e.type]; if(t) return t;
+  if(/^IFC(FLOW|DUCT|PIPE|CABLE|DISTRIBUTION|ENERGYCONVERSION|AIRTERMINAL|LIGHTFIXTURE|SANITARYTERMINAL|VALVE|PUMP|FAN|BOILER|CHILLER|ELECTRIC|FIRESUPPRESSION|UNITARYEQUIPMENT|SWITCHING|OUTLET|JUNCTIONBOX|TANK|COIL|DAMPER|ALARM|SENSOR|ACTUATOR|CONTROLLER|PROTECTIVEDEVICE)/.test(e.type)) return 'mep';
+  const k=matchTrade(e.name+' '+e.otype,CR); return k&&k!=='ignore'?k:null; }
+const IFC_LS='p6_4d_ifc_v1:';
+function getIfcOv(m){ const o=lsGet(IFC_LS+projKey(m),null)||{}; o.bmap=o.bmap||{}; o.smap=o.smap||{}; return o; }
+function ifcLink(P,MP,IM,ov,seqOf){
+  const CR=compileRules(getRules()), codeIdx=new Map(); P.rows.forEach((r,i)=>codeIdx.set(norm(String(r.code)).trim(),i));
+  const bByKey=new Map(MP.blds.map(b=>[b.key,b]));
+  // 1. IFC building → WBS building
+  const keyOf=b=>{ const w=P.m.wbsById[b.key]||{}; return {n:nameKey(b.name),i:idOf(b.name),c:nameKey(w.code||''),t:tokSet(b.name)}; };
+  const WK=MP.blds.map(b=>({b,K:keyOf(b)})), bmap={}, bsrc={};
+  const vert=MP.blds.filter(b=>b.hasVert);
+  IM.buildings.forEach(B=>{ if(ov.bmap[B.id]!=null){ bmap[B.id]=ov.bmap[B.id]||null; bsrc[B.id]='set by hand'; return; }
+    let best=null,bs=0; const L1=mkLabel(B.name,0,0,1,1,0), L2=B.long?mkLabel(B.long,0,0,1,1,0):null;
+    WK.forEach(x=>{ const s=Math.max(scoreLabel(x.K,L1),L2?scoreLabel(x.K,L2):0); if(s>bs){ bs=s; best=x.b; } });
+    if(best&&bs>=60){ bmap[B.id]=best.key; bsrc[B.id]='name match ('+bs+')'; }
+    else if(IM.buildings.length===1&&vert.length===1){ bmap[B.id]=vert[0].key; bsrc[B.id]='only building in both the model and the schedule'; }
+    else { bmap[B.id]=null; bsrc[B.id]='no matching WBS building — choose one'; } });
+  // 2. storey → level
+  const sLevel={}, sSrc={};
+  const byB=new Map(); IM.storeys.forEach(s=>{ const k=s.bld||0; (byB.get(k)||byB.set(k,[]).get(k)).push(s); });
+  byB.forEach(list=>{ list.sort((a,b)=>a.elev-b.elev); let g=list.findIndex(s=>Math.abs(s.elev)<0.75); if(g<0){ g=list.findIndex(s=>s.elev>=-0.75); if(g<0) g=0; }
+    list.forEach((s,k)=>{ if(ov.smap[s.id]!=null&&ov.smap[s.id]!==''){ sLevel[s.id]=+ov.smap[s.id]; sSrc[s.id]='set by hand'; return; }
+      const pl=parseLevel(s.name)??(s.long?parseLevel(s.long):null); if(pl!=null){ sLevel[s.id]=pl; sSrc[s.id]='from storey name'; } else { sLevel[s.id]=k-g; sSrc[s.id]='from elevation order (ground = '+list[g].name+')'; } }); });
+  // 3. element → activity
+  const params=new Set(), out=[], byGroup=new Map(), actsOf=new Map(); let nParam=0;
+  MP.mapped.forEach(a=>{ const k=a.b+'|'+(a.rank==null?'*':a.rank)+'|'+a.trade; (actsOf.get(k)||actsOf.set(k,[]).get(k)).push(a.i); });
+  IM.els.forEach((e,ix)=>{ const L={ix,e,act:-1,how:'',trade:ifcTradeOf(e,CR),bkey:e.bld!=null?bmap[e.bld]:null,level:e.storey!=null?sLevel[e.storey]:null,zone:null};
+    // (a) exact link through an element parameter that holds a P6 activity ID
+    for(const [k,v] of Object.entries(e.props)){ if(v==null||typeof v==='object') continue; const parts=String(v).split(/[,;|/]+/).map(x=>norm(x).trim()).filter(Boolean);
+      for(const p of parts){ const i=codeIdx.get(p); if(i!=null){ L.act=i; L.how='parameter “'+k+'” = '+p; params.add(k); nParam++; break; } } if(L.act>=0) break;
+      if(/zone|sector|pour|area|قطاع/i.test(k)) L.zone=normId(String(v).replace(/^.*?([a-z]?\d{1,3}[a-z]?|[a-z])\s*$/i,'$1').toLowerCase()); }
+    if(L.act<0){
+      if(!L.trade){ L.how='element type has no construction trade'; }
+      else if(!L.bkey){ L.how='its IFC building is not mapped to a WBS building'; }
+      else { const b=bByKey.get(L.bkey); let rank=null;
+        if(VERTICAL.has(L.trade)){ if(L.level==null){ L.how='element is not on a storey'; out.push(L); return; }
+          rank=b.levels.indexOf(L.level); if(rank<0){ const above=b.levels.map((l,k)=>({l,k})).filter(x=>x.l!==1000); let bd=Infinity; above.forEach(x=>{ const d=Math.abs(x.l-L.level); if(d<bd){ bd=d; rank=x.k; } }); L.approxLevel=true; } }
+        const gk=L.bkey+'|'+(rank==null?'*':rank)+'|'+L.trade; L.gk=gk; (byGroup.get(gk)||byGroup.set(gk,[]).get(gk)).push(L);
+        if(!actsOf.has(gk)) L.how=`no activity for ${b.name} · ${rank==null?'building-wide':levelLabel(b.levels[rank])} · ${TRADE_BY[L.trade].label}`; } }
+    out.push(L); });
+  // 4. split each group between its activities: by Zone parameter, else along the long axis in planned-start order
+  const startOf=i=>{ const r=P.rows[i]; return r.ps!=null?r.ps:(r.fs!=null?r.fs:0); };
+  byGroup.forEach((Ls,gk)=>{ const acts=actsOf.get(gk); if(!acts||!acts.length) return; acts.sort((x,y)=>startOf(x)-startOf(y));
+    const ztok=acts.map(i=>{ const m=norm(P.rows[i].name).match(ZRX); return m?normId(m[2]):null; });
+    let rest=[];
+    Ls.forEach(L=>{ if(L.zone!=null){ const k=ztok.indexOf(L.zone); if(k>=0){ L.act=acts[k]; L.how='zone parameter '+L.zone+' → activity zone'; return; } } rest.push(L); });
+    if(!rest.length) return;
+    if(acts.length===1){ rest.forEach(L=>{ L.act=acts[0]; L.how='building + level + element type'; }); return; }
+    let x0=Infinity,x1=-Infinity,z0=Infinity,z1=-Infinity; rest.forEach(L=>{ const b=L.e.bb; x0=Math.min(x0,b[0]); x1=Math.max(x1,b[3]); z0=Math.min(z0,b[2]); z1=Math.max(z1,b[5]); });
+    const useX=(x1-x0)>=(z1-z0), lo=useX?x0:z0, len=Math.max(1e-6,useX?x1-x0:z1-z0), dir=(seqOf&&seqOf(gk.split('|')[0]))||'x+', rev=dir[1]==='-';
+    rest.forEach(L=>{ const b=L.e.bb, c=useX?(b[0]+b[3])/2:(b[2]+b[5])/2; let k=Math.min(acts.length-1,Math.floor((c-lo)/len*acts.length)); if(rev) k=acts.length-1-k;
+      L.act=acts[k]; L.how=`building + level + element type, zone ${k+1}/${acts.length} along the ${useX?'east–west':'north–south'} axis (planned-start order)`; }); });
+  const linkedActs=new Set(out.filter(L=>L.act>=0).map(L=>L.act));
+  return {links:out,bmap,bsrc,sLevel,sSrc,params:[...params],nParam,linkedActs,
+    nLinked:out.filter(L=>L.act>=0).length, missingActs:MP.mapped.filter(a=>!linkedActs.has(a.i)).map(a=>a.i)}; }
+
+/* ---------- BIM model store: raw IFC in IndexedDB, parsed model cached in memory ---------- */
+const BIM={key:null,model:null,pending:null,err:null,ver:0};
+function bimKey(m){ return projKey(m)+'|ifc'; }
+function loadBim(m,onProg){ const k=bimKey(m);
+  if(BIM.key===k&&(BIM.model||BIM.pending)) return BIM.pending||Promise.resolve(BIM.model);
+  BIM.key=k; BIM.model=null; BIM.err=null;
+  BIM.pending=imgGet(k).then(async txt=>{ if(!txt){ BIM.pending=null; return null; }
+    try{ const meta=lsGet(IFC_LS+'meta:'+projKey(m),{}); const IM=await ifcRead(txt,onProg); IM.fileName=meta.name||'model.ifc'; if(BIM.key===k){ BIM.model=IM; BIM.ver++; MAPVER++; } }
+    catch(e){ BIM.err=e.message||String(e); }
+    BIM.pending=null; return BIM.model; });
+  return BIM.pending; }
+function bimReady(m){ return BIM.key===bimKey(m)&&BIM.model?BIM.model:null; }
+/* ---------- IFC elements → 4D objects (same element interface as the procedural model) ---------- */
+function buildIfcGeometry(P,MP,IM){
+  const L=getLayout(P.m), ov=getIfcOv(P.m), LK=ifcLink(P,MP,IM,ov,k=>(L.seq&&L.seq[k])||'x+');
+  const bByKey=new Map(MP.blds.map((b,i)=>{ b.idx=i; return [b.key,b]; }));
+  const ctxB={key:'__ifc',name:'Unscheduled BIM elements',levels:[0],nBase:0,idx:MP.blds.length,rot:0,ox:0,oz:0};
+  const elems=[], elemOfAct=new Map(), elemsOfAct=new Map(); let nv=0;
+  LK.links.forEach(Lk=>{ nv+=Lk.e.tri.length/3; });
+  const pos=new Float32Array(nv*3), nrm=new Float32Array(nv*3); let vo=0;
+  let ymin=Infinity,ymax=-Infinity,x0=Infinity,x1=-Infinity,z0=Infinity,z1=-Infinity;
+  LK.links.forEach((Lk,k)=>{ const e=Lk.e, t=e.tri, v0=vo/3;
+    pos.set(t,vo);
+    for(let i=0;i<t.length;i+=9){ const ax=t[i+3]-t[i],ay=t[i+4]-t[i+1],az=t[i+5]-t[i+2],bx=t[i+6]-t[i],by=t[i+7]-t[i+1],bz=t[i+8]-t[i+2];
+      let nx=ay*bz-az*by, ny=az*bx-ax*bz, nz=ax*by-ay*bx; const l=Math.hypot(nx,ny,nz)||1; nx/=l; ny/=l; nz/=l;
+      for(let j=0;j<3;j++){ nrm[vo+i+j*3]=nx; nrm[vo+i+j*3+1]=ny; nrm[vo+i+j*3+2]=nz; } }
+    vo+=t.length;
+    const bb=e.bb; ymin=Math.min(ymin,bb[1]); ymax=Math.max(ymax,bb[4]); x0=Math.min(x0,bb[0]); x1=Math.max(x1,bb[3]); z0=Math.min(z0,bb[2]); z1=Math.max(z1,bb[5]);
+    const linked=Lk.act>=0, r=linked?P.rows[Lk.act]:null, bw=Lk.bkey?bByKey.get(Lk.bkey):null;
+    const st=e.storey!=null?IM.storeys.find(s=>s.id===e.storey):null;
+    const E={id:k,ifc:true,act:linked?Lk.act:-1,acts:linked?[Lk.act]:[],w:[1],wSum:1,b:bw||ctxB,rank:null,trade:Lk.trade||'finishes',zone:0,nZone:1,
+      crit:r?r.crit:false,delay:null,v0,v1:vo/3,bmin:[bb[0],bb[1],bb[2]],bmax:[bb[3],bb[4],bb[5]],vol:Math.max(0.01,(bb[3]-bb[0])*(bb[4]-bb[1])*(bb[5]-bb[2])),
+      ifcType:e.type.replace(/^IFC/,'').replace(/STANDARDCASE$/,''),ifcName:e.name,gid:e.gid,storey:st?st.name:'',how:Lk.how,level:Lk.level,qty:e.qty};
+    if(bw&&Lk.level!=null){ const rk=bw.levels.indexOf(Lk.level); E.rank=rk>=0?rk:null; }
+    if(r){ const aF=r.af!=null?r.af:r.ff; if(aF!=null&&r.pf!=null) E.delay=Math.round((aF-r.pf)/DAY);
+      if(!elemOfAct.has(Lk.act)) elemOfAct.set(Lk.act,k); (elemsOfAct.get(Lk.act)||elemsOfAct.set(Lk.act,[]).get(Lk.act)).push(k); }
+    elems.push(E); });
+  if(!isFinite(x0)){ x0=-20; x1=20; z0=-20; z1=20; ymin=0; ymax=10; }
+  const site={minx:x0-10,maxx:x1+10,minz:z0-10,maxz:z1+10,w:x1-x0+20,d:z1-z0+20,cx:(x0+x1)/2,cz:(z0+z1)/2,planW:0,planD:0,hasPlan:false};
+  // building labels: centre of the elements of each IFC building
+  const ifcBlds=IM.buildings.map(B=>{ let a=Infinity,b=-Infinity,c=Infinity,d=-Infinity,t=-Infinity; LK.links.forEach(L=>{ if(L.e.bld!==B.id) return; const q=L.e.bb; a=Math.min(a,q[0]); b=Math.max(b,q[3]); c=Math.min(c,q[2]); d=Math.max(d,q[5]); t=Math.max(t,q[4]); });
+    const w=LK.bmap[B.id]?bByKey.get(LK.bmap[B.id]):null; return isFinite(a)?{key:w?w.key:'__ifc'+B.id,name:w?w.name:B.name,ox:(a+b)/2,oz:(c+d)/2,topY:t}:null; }).filter(Boolean);
+  return {ifc:true,elems,parts:[],pos,nrm,nv,site,ymin:Math.min(0,ymin)-1,ymax:ymax+1.5,elemOfAct,elemsOfAct,groups:0,layout:L,scale:0,placed:MP.blds.length,ifcBlds,link:LK,model:IM,ctxB};
+}
+/* ---------- IFC scene: one merged mesh per set, per-vertex state written only when an element changes ---------- */
+const IFC_VS=`attribute vec4 col; attribute vec3 clip; varying vec4 vC; varying vec3 vP; varying vec3 vN; varying vec3 vK;
+void main(){ vC=col; vP=position; vK=clip; vN=normalize(normalMatrix*normal); gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`;
+const IFC_FS=`uniform float uMode; uniform float uSlice; uniform vec3 uLight; varying vec4 vC; varying vec3 vP; varying vec3 vN; varying vec3 vK;
+void main(){ if(vP.y>uSlice) discard; float f=vC.a;
+  if(uMode<0.5){ if(f<0.75) discard; } else { if(f<0.25||f>0.75) discard; }
+  if(vK.x>-0.5){ float c=vK.x<0.5?vP.x:(vK.x<1.5?vP.y:vP.z); if(vK.z>0.0){ if(c>vK.y) discard; } else { if(c<vK.y) discard; } }
+  vec3 n=normalize(vN); float l=0.42+0.5*max(dot(n,normalize(uLight)),0.0)+0.18*max(n.y,0.0)+0.08*abs(n.x);
+  if(uMode<0.5) gl_FragColor=vec4(vC.rgb*min(l,1.1),1.0); else gl_FragColor=vec4(0.49,0.58,0.67,0.13); }`;
+function buildSceneIfc(V){
+  const THREE=three(), G=V.G, S0=G.site; ensureRenderer();
+  const scene=new THREE.Scene(); scene.background=new THREE.Color(0xeef3f8);
+  const cam=new THREE.PerspectiveCamera(45,1,0.5,80000);
+  const dir=new THREE.DirectionalLight(0xffffff,0.8); dir.position.set(S0.cx-200,300,S0.cz+150); scene.add(dir); scene.add(new THREE.HemisphereLight(0xffffff,0xb7c3cf,0.7));
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshStandardMaterial({color:0xd9dfd2,transparent:true,opacity:0.72,depthWrite:false,roughness:1}));
+  ground.rotation.x=-Math.PI/2; ground.position.y=G.ymin+0.98; scene.add(ground);
+  const posA=new THREE.BufferAttribute(G.pos,3), nrmA=new THREE.BufferAttribute(G.nrm,3);
+  const uni=()=>({uMode:{value:0},uSlice:{value:G.ymax+1},uLight:{value:new THREE.Vector3(-0.5,0.8,0.4)}});
+  const sets={};
+  ['plan','built'].forEach(k=>{ const geo=new THREE.BufferGeometry(); geo.setAttribute('position',posA); geo.setAttribute('normal',nrmA);
+    const col=new THREE.BufferAttribute(new Float32Array(G.nv*4),4), clip=new THREE.BufferAttribute(new Float32Array(G.nv*3).fill(-1),3);
+    col.setUsage(THREE.DynamicDrawUsage); clip.setUsage(THREE.DynamicDrawUsage); geo.setAttribute('col',col); geo.setAttribute('clip',clip);
+    const uS=uni(), uG=uni(); uG.uMode.value=1;
+    const solid=new THREE.Mesh(geo,new THREE.ShaderMaterial({vertexShader:IFC_VS,fragmentShader:IFC_FS,uniforms:uS,side:THREE.DoubleSide}));
+    const ghost=new THREE.Mesh(geo,new THREE.ShaderMaterial({vertexShader:IFC_VS,fragmentShader:IFC_FS,uniforms:uG,transparent:true,depthWrite:false,side:THREE.DoubleSide}));
+    solid.frustumCulled=false; ghost.frustumCulled=false; ghost.renderOrder=2;
+    const grp=new THREE.Group(); grp.add(solid); grp.add(ghost); scene.add(grp);
+    sets[k]={grp,solid,ghost,geo,col,clip,uS,uG,under:null,last:new Int32Array(G.elems.length).fill(-1),off:0,state:new Uint8Array(G.elems.length),cur:new Float32Array(G.elems.length*6)}; });
+  const selGeo=new THREE.EdgesGeometry(new THREE.BoxGeometry(1,1,1)); selGeo.translate(0.5,0.5,0.5);
+  const sel=new THREE.LineSegments(selGeo,new THREE.LineBasicMaterial({color:0xffb000})); sel.visible=false; sel.matrixAutoUpdate=false; scene.add(sel);
+  Object.assign(V,{scene,cam,dir,ground,plane:{constant:0},sets,bm:[],selBox:sel,mtx:new THREE.Matrix4(),tmpM:new THREE.Matrix4(),offM:new THREE.Matrix4(),col:new THREE.Color(),
+    matS:{needsUpdate:false},planMat:null,
+    dispose(){ selGeo.dispose(); ground.geometry.dispose(); ground.material.dispose(); ['plan','built'].forEach(k=>{ sets[k].geo.dispose(); sets[k].solid.material.dispose(); sets[k].ghost.material.dispose(); }); }});
+  V.built=true; layoutSets(V); fitCamera(V,'iso');
+}
+const CTX_RGB=hexToRgb('#d5dbe2');
+function updateModelIfc(V,T){
+  const P=V.P, G=V.G, FS=frameState(P,T), sliceY=G.ymin+(G.ymax-G.ymin)*VIEW.slice;
+  const mainSk=VIEW.mode==='plan'?'plan':'built', sets=VIEW.mode==='split'?['plan','built']:[mainSk];
+  const cKey=VIEW.colorBy+'|'+VIEW.mode+'|'+VIEW.ghost+'|'+VIEW.bFilter+'|'+VIEW.floorFilter+'|'+[...VIEW.tradeOff].join(',')+'|'+VIEW.ifcCtx;
+  if(V.cKey!==cKey){ V.cKey=cKey; V.sets.plan.last.fill(-1); V.sets.built.last.fill(-1); }
+  const active=[];
+  sets.forEach(sk=>{ const S=V.sets[sk], ca=S.col.array, cl=S.clip.array; S.uS.uSlice.value=sliceY; S.uG.uSlice.value=sliceY; let lo=Infinity, hi=-1;
+    for(const e of G.elems){ let key, rgb, flag, ax=-1, lim=0, sgn=1;
+      if(e.act<0){ const vis=VIEW.ifcCtx&&(!VIEW.bFilter||e.b.key===VIEW.bFilter)&&!VIEW.tradeOff.has(e.trade);
+        key=vis?1:0; if(S.last[e.id]===key) continue; S.last[e.id]=key; rgb=CTX_RGB; flag=vis?1:0; S.state[e.id]=vis?3:0; }
+      else { const i=e.act, pp=FS.plan[i], pb=FS.built[i], p=sk==='plan'?pp:pb, prof=V.PROF[e.trade]||{type:'install',growth:'up',before:'ghost'}, vis=elemVisible(e), st=objPhase(prof,p);
+        if(sk===mainSk&&vis&&st.ph==='active') active.push(e.id);
+        const delayed=sk==='built'&&pp>=0.999&&pb<0.999, ghost=vis&&VIEW.ghost&&prof.type==='install'&&prof.before==='ghost'&&st.ph!=='after';
+        const vk=VIEW.mode==='variance'&&sk==='built'?(pb<pp-0.05?1:pb>pp+0.05?2:0):0;
+        key=vis?(((((Math.round(st.f*200)*3+(st.ph==='active'?1:st.ph==='after'?2:0))*2+(delayed?1:0))*3+vk)*4+(st.show?2:0)+(ghost?1:0))+2):0;
+        if(S.last[e.id]===key) continue; S.last[e.id]=key;
+        rgb=colorOf(V,e,sk,st.ph,pp,pb); const show=vis&&st.show&&st.f>0.0005;
+        flag=show?1:(ghost?0.5:0); S.state[e.id]=show?1:(ghost?2:0);
+        const A=AX[prof.growth]; if(show&&A&&st.f<0.999){ ax=A[0]; const mn=e.bmin[ax], mx=e.bmax[ax]; if(A[1]>0){ lim=mn+st.f*(mx-mn); sgn=1; } else { lim=mx-st.f*(mx-mn); sgn=-1; } } }
+      for(let v=e.v0;v<e.v1;v++){ const o=v*4; ca[o]=rgb[0]; ca[o+1]=rgb[1]; ca[o+2]=rgb[2]; ca[o+3]=flag; const q=v*3; cl[q]=ax; cl[q+1]=lim; cl[q+2]=sgn; }
+      const c=S.cur, q6=e.id*6; for(let k=0;k<3;k++){ c[q6+k]=e.bmin[k]; c[q6+3+k]=e.bmax[k]; } if(ax>=0){ if(sgn>0) c[q6+3+ax]=Math.min(c[q6+3+ax],lim); else c[q6+ax]=Math.max(c[q6+ax],lim); }
+      if(e.v0<lo) lo=e.v0; if(e.v1>hi) hi=e.v1; }
+    if(hi>=0){ S.col.needsUpdate=true; S.clip.needsUpdate=true;
+      if(S.col.updateRange){ S.col.updateRange.offset=lo*4; S.col.updateRange.count=(hi-lo)*4; S.clip.updateRange.offset=lo*3; S.clip.updateRange.count=(hi-lo)*3; } } });
+  V.FS=FS; V.activeIds=active; requestRender(); }
+function pickIfc(V,e){ const r=rayFromEvent(V,e), O=r.origin, D=r.direction, G=V.G, sliceY=G.ymin+(G.ymax-G.ymin)*VIEW.slice; let best=null, bt=Infinity;
+  const sets=VIEW.mode==='split'?['plan','built']:[VIEW.mode==='plan'?'plan':'built'];
+  sets.forEach(sk=>{ const S=V.sets[sk], off=S.off;
+    for(const E of G.elems){ const st=S.state[E.id]; if(!st) continue; const q=E.id*6; let mny=S.cur[q+1], mxy=Math.min(S.cur[q+4],sliceY); if(mny>sliceY) continue;
+      const mn=[S.cur[q]+off,mny,S.cur[q+2]], mx=[S.cur[q+3]+off,mxy,S.cur[q+5]]; let t0=0,t1=bt, ok=true;
+      for(let k=0;k<3&&ok;k++){ const o=k===0?O.x:k===1?O.y:O.z, d=k===0?D.x:k===1?D.y:D.z; if(Math.abs(d)<1e-12){ if(o<mn[k]||o>mx[k]) ok=false; continue; }
+        let ta=(mn[k]-o)/d, tb=(mx[k]-o)/d; if(ta>tb){ const x=ta; ta=tb; tb=x; } if(ta>t0) t0=ta; if(tb<t1) t1=tb; if(t0>t1) ok=false; }
+      // prefer scheduled, solid elements over context / ghost when distances tie
+      const tt=t0+(st===1?0:st===2?0.05:0.1); if(ok&&tt<bt){ bt=tt; best={e:E,set:sk,solid:st===1}; } } });
+  return best; }
+function ifcUnion(V,act,E){ const ids=act!=null&&act>=0?(V.G.elemsOfAct.get(act)||[E.id]):[E.id], mn=[Infinity,Infinity,Infinity], mx=[-Infinity,-Infinity,-Infinity];
+  ids.forEach(id=>{ const e=V.G.elems[id]; for(let k=0;k<3;k++){ mn[k]=Math.min(mn[k],e.bmin[k]); mx[k]=Math.max(mx[k],e.bmax[k]); } }); return {mn,mx,n:ids.length}; }
+/* ========================================================================
+   🏗 BIM TAB — load the IFC exported from Revit, review the automatic links
+   ======================================================================== */
+function renderBim(host){
+  const P=getPrep(); host.innerHTML=''; if(!P) return;
+  const m=P.m, K=projKey(m), MP=buildMapping(P), IM=bimReady(m), ov=getIfcOv(m);
+  const intro=el('div','banner-info');
+  intro.innerHTML=`<b>BIM model from Revit.</b> In Revit use <b>File → Export → IFC</b> and load the .ifc here. The 4D then shows the <b>real Revit geometry</b>, real storey heights and real positions — every element linked to a P6 activity:
+    <b>①</b> exactly, when an element parameter (e.g. <span class="mono">4D_Activity_ID</span>) holds the activity ID; otherwise <b>②</b> automatically by <i>IFC building → WBS building</i>, <i>storey → WBS level</i> and <i>element class → trade</i>, split between that trade's activities by a <span class="mono">Zone</span> parameter or along the building in planned-start order.
+    Read entirely in your browser — the model never leaves your computer. <b>.rvt</b> files cannot be read outside Revit; export IFC (IFC2x3 Coordination View 2.0 or IFC4 Reference View, with <i>Export base quantities</i> ticked).`;
+  host.appendChild(intro);
+  const pnl=U.panel('🏗 BIM model (IFC)',IM?`${esc(IM.fileName)} · ${IM.schema} · ${fN(IM.els.length)} elements with geometry · ${IM.buildings.length} building(s) · ${IM.storeys.length} storeys`:'no model loaded',
+    `<div class="ext-ctrl no-print"><button class="mini-btn primary" data-a="load">📂 Load IFC (exported from Revit)</button><input type="file" data-a="file" accept=".ifc,.IFC" class="hidden"/>
+      ${IM?`<label><input type="checkbox" data-a="use" ${VIEW.useIfc?'checked':''}/> Use the BIM model in the 4D view</label><label><input type="checkbox" data-a="ctx" ${VIEW.ifcCtx?'checked':''}/> Show unscheduled elements as grey context</label>
+      <button class="mini-btn" data-a="csv">⬇ Link report (CSV)</button><button class="mini-btn" data-a="clr">🗑 Remove model</button><span class="sp" style="flex:1"></span><button class="mini-btn primary" data-a="go">🧊 View in 4D</button>`:''}</div>
+    <div class="bim-status"></div><div class="bim-body"></div>`,false);
+  host.appendChild(pnl);
+  const status=pnl.querySelector('.bim-status'), body=pnl.querySelector('.bim-body'), busy=t=>{ status.innerHTML=t?`<div class="banner-info mp-busy">⏳ ${t}</div>`:''; };
+  const fileIn=pnl.querySelector('[data-a=file]');
+  pnl.querySelector('[data-a=load]').addEventListener('click',()=>fileIn.click());
+  fileIn.addEventListener('change',async e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return;
+    try{ if(/\.rvt$/i.test(f.name)) throw new Error('A .rvt file can only be read by Revit. In Revit use File → Export → IFC and load the .ifc file.');
+      busy('Reading '+esc(f.name)+' ('+fN(f.size/1048576,1)+' MB)…'); const txt=await f.text();
+      if(!/ISO-10303-21/.test(txt.slice(0,200))) throw new Error('This file is not an IFC (STEP) file.');
+      const IMn=await ifcRead(txt,t=>busy(esc(t))); if(!IMn.els.length) throw new Error('No elements with 3D geometry were found in this IFC.');
+      busy('Saving the model in this browser…'); await imgPut(bimKey(m),txt); lsSet(IFC_LS+'meta:'+K,{name:f.name,size:f.size,when:new Date().toISOString()});
+      IMn.fileName=f.name; BIM.key=bimKey(m); BIM.model=IMn; BIM.ver++; MAPVER++; VIEW.useIfc=true; busy(''); U.show('bim'); }
+    catch(err){ console.error(err); busy(''); status.innerHTML=`<div class="banner-err">⚠ ${esc(err.message||String(err))}</div>`; } });
+  if(!IM){ if(BIM.err&&BIM.key===bimKey(m)) status.innerHTML=`<div class="banner-err">⚠ The stored model could not be read: ${esc(BIM.err)}</div>`;
+    else imgGet(bimKey(m)).then(x=>{ if(x&&!bimReady(m)){ busy('Opening the stored BIM model…'); loadBim(m,t=>busy(esc(t))).then(()=>{ busy(''); if(STATE.activeTab==='bim') U.show('bim'); }); } });
+    body.innerHTML='<div class="empty-state"><div class="big">🏗</div><div>No BIM model loaded for this project.</div></div>'; return; }
+  const LK=ifcLink(P,MP,IM,ov,k=>{ const L=getLayout(m); return (L.seq&&L.seq[k])||'x+'; });
+  const save=()=>{ lsSet(IFC_LS+K,ov); MAPVER++; U.show('bim'); };
+  pnl.querySelector('[data-a=use]').addEventListener('change',e=>{ VIEW.useIfc=e.target.checked; MAPVER++; });
+  pnl.querySelector('[data-a=ctx]').addEventListener('change',e=>{ VIEW.ifcCtx=e.target.checked; });
+  pnl.querySelector('[data-a=go]').addEventListener('click',()=>{ VIEW.useIfc=true; MAPVER++; U.show('m4d'); });
+  pnl.querySelector('[data-a=clr]').addEventListener('click',async()=>{ if(!confirm('Remove the BIM model from this browser?')) return; await imgDel(bimKey(m)); BIM.model=null; BIM.key=null; VIEW.useIfc=false; MAPVER++; U.show('bim'); });
+  pnl.querySelector('[data-a=csv]').addEventListener('click',()=>{ const sname=id=>{ const s=IM.storeys.find(x=>x.id===id); return s?s.name:''; };
+    U.csv('bim-4d-links.csv',[['IFC GlobalId','IFC class','Element name','IFC building','Storey','Trade','Linked activity','Activity name','How linked','Volume m3']].concat(LK.links.map(L=>{ const r=L.act>=0?P.rows[L.act]:null, B=IM.buildings.find(b=>b.id===L.e.bld);
+      return [L.e.gid,L.e.type,L.e.name,B?B.name:'',sname(L.e.storey),L.trade?TRADE_BY[L.trade].label:'',r?r.code:'',r?r.name:'',L.act>=0?L.how:('NOT LINKED — '+L.how),L.e.qty.vol!=null?L.e.qty.vol.toFixed(3):'']; }))); });
+  const nEl=LK.links.length, nL=LK.nLinked, nCtx=nEl-nL, phys=MP.mapped.length, actHit=LK.linkedActs.size;
+  const g=el('div','kpi-grid');
+  g.appendChild(kpiCard('Elements linked to activities',fN(nL),`${(nL/(nEl||1)*100).toFixed(1)}% of ${fN(nEl)} · ${fN(LK.nParam)} by parameter, ${fN(nL-LK.nParam)} automatically`,nL/(nEl||1)>=0.8?'good':nL/(nEl||1)>=0.5?'warn':'bad'));
+  g.appendChild(kpiCard('Activities with BIM elements',fN(actHit),`${(actHit/(phys||1)*100).toFixed(1)}% of ${fN(phys)} physical activities`,actHit/(phys||1)>=0.8?'good':actHit/(phys||1)>=0.5?'warn':'bad'));
+  g.appendChild(kpiCard('Unscheduled elements',fN(nCtx),'shown as grey context (optional)','info'));
+  g.appendChild(kpiCard('Geometry',fN(IM.els.length),`${IM.stats.cuts?fN(IM.stats.cuts)+' with openings shown uncut · ':''}${IM.stats.approx?fN(IM.stats.approx)+' steel sections as bounding rectangles · ':''}${IM.stats.noGeom?fN(IM.stats.noGeom)+' without body geometry skipped':'all elements read'}`,'info'));
+  body.appendChild(g);
+  if(LK.params.length) body.appendChild(el('div','banner-info',`✓ Exact links read from parameter${LK.params.length>1?'s':''} <b>${LK.params.map(esc).join(', ')}</b> — these elements follow their activity exactly.`));
+  else body.appendChild(el('div','banner-warn',`No element parameter holds a P6 Activity ID, so all links are automatic. For 100 % exact links add a shared parameter (e.g. <span class="mono">4D_Activity_ID</span>) in Revit, fill it with the P6 Activity ID and re-export.`));
+  const unsup=Object.entries(IM.stats.unsup).sort((a,b)=>b[1]-a[1]); if(unsup.length) body.appendChild(el('div','banner-warn',`Some geometry types are not drawn: ${unsup.slice(0,6).map(([k,v])=>`${esc(k)} ×${v}`).join(', ')}.`));
+  // building mapping
+  const bOpts=sel=>`<option value="">— not in the schedule —</option>`+MP.blds.map(b=>`<option value="${esc(b.key)}" ${sel===b.key?'selected':''}>${esc(b.name)}</option>`).join('');
+  const bp=U.panel('1 · IFC buildings → WBS buildings','matched by name / number; change if wrong',
+    `<table class="grid sm"><thead><tr><th class="no-sort">IFC building</th><th class="no-sort">Elements</th><th class="no-sort">WBS building</th><th class="no-sort">How</th></tr></thead><tbody>
+      ${IM.buildings.map(B=>`<tr><td><b>${esc(B.name)}</b>${B.long?` <small>${esc(B.long)}</small>`:''}</td><td class="num">${fN(LK.links.filter(L=>L.e.bld===B.id).length)}</td>
+        <td><select data-b="${B.id}">${bOpts(LK.bmap[B.id])}</select></td><td>${esc(LK.bsrc[B.id])}</td></tr>`).join('')}</tbody></table>`,false);
+  body.appendChild(bp); bp.querySelectorAll('[data-b]').forEach(s=>s.addEventListener('change',e=>{ ov.bmap[e.target.dataset.b]=e.target.value; save(); }));
+  // storeys
+  const sp=U.panel('2 · IFC storeys → WBS levels','level number: −1 basement, 0 ground, 1 first floor …',
+    `<div class="tbl-wrap" style="max-height:320px"><table class="grid sm"><thead><tr><th class="no-sort">Building</th><th class="no-sort">Storey</th><th class="no-sort num">Elevation (m)</th><th class="no-sort num">Elements</th><th class="no-sort">Level</th><th class="no-sort">How</th></tr></thead><tbody>
+      ${IM.storeys.slice().sort((a,b)=>(a.bld||0)-(b.bld||0)||a.elev-b.elev).map(s=>{ const B=IM.buildings.find(b=>b.id===s.bld);
+        return `<tr><td>${esc(B?B.name:'—')}</td><td><b>${esc(s.name)}</b></td><td class="num">${fN(s.elev,2)}</td><td class="num">${fN(LK.links.filter(L=>L.e.storey===s.id).length)}</td>
+        <td><input type="number" step="1" data-s="${s.id}" value="${LK.sLevel[s.id]}" style="width:64px"/> <small>${levelLabel(LK.sLevel[s.id])}</small></td><td>${esc(LK.sSrc[s.id])}</td></tr>`; }).join('')}</tbody></table></div>`,false);
+  body.appendChild(sp); sp.querySelectorAll('[data-s]').forEach(i=>i.addEventListener('change',e=>{ ov.smap[e.target.dataset.s]=e.target.value===''?'':+e.target.value; save(); }));
+  // classes
+  const byC=new Map(); LK.links.forEach(L=>{ const k=L.e.type; const x=byC.get(k)||{n:0,l:0,t:L.trade}; x.n++; if(L.act>=0) x.l++; byC.set(k,x); });
+  const cp=U.panel('3 · Element classes → trades','how each Revit / IFC category is scheduled',
+    `<table class="grid sm"><thead><tr><th class="no-sort">IFC class</th><th class="no-sort">Trade</th><th class="no-sort num">Elements</th><th class="no-sort num">Linked</th></tr></thead><tbody>
+      ${[...byC.entries()].sort((a,b)=>b[1].n-a[1].n).map(([k,x])=>`<tr><td class="mono">${esc(k)}</td><td>${x.t?`<span class="sw4" style="background:${TRADE_BY[x.t].color}"></span> ${TRADE_BY[x.t].label}`:'<span class="chip c-ns">none</span>'}</td><td class="num">${fN(x.n)}</td><td class="num">${x.l===x.n?`<b style="color:var(--ahead)">${fN(x.l)}</b>`:fN(x.l)}</td></tr>`).join('')}</tbody></table>`,false);
+  body.appendChild(cp);
+  // gaps
+  const gaps=new Map(); LK.links.filter(L=>L.act<0).forEach(L=>gaps.set(L.how,(gaps.get(L.how)||0)+1));
+  const miss=LK.missingActs.map(i=>P.rows[i]);
+  const gp=U.panel('4 · What is not linked','fix these in the WBS, the activity names or the Revit parameters',
+    `<div class="two-col"><div><h4 class="lg">BIM elements without an activity</h4>${gaps.size?`<table class="grid sm"><tbody>${[...gaps.entries()].sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<tr><td>${esc(k)}</td><td class="num">${fN(v)}</td></tr>`).join('')}</tbody></table>`:'<div class="section-note">None — every element is scheduled.</div>'}</div>
+      <div><h4 class="lg">Activities without BIM elements (${fN(miss.length)})</h4>${miss.length?`<div class="tbl-wrap" style="max-height:260px"><table class="grid sm"><tbody>${miss.slice(0,300).map(r=>`<tr><td class="mono">${esc(r.code)}</td><td>${esc(r.name)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="section-note">None — every physical activity has model elements.</div>'}</div></div>`,false);
+  body.appendChild(gp);
+}
+
 /* ---------- KPIs at the 4D timeline date (live strip on the KPI tab) ---------- */
 function kpiLive(P,wkey){
   tlInit(P);
@@ -4096,10 +4583,10 @@ function kpiLive(P,wkey){
   draw(); return p; }
 
 /* ---------------------------------------------------------------- register */
-window.P6EXT={ m4d:renderM4d, mp:renderMp, pva:renderPva, scx:renderScx, kpi:renderKpi, map:renderMap,
+window.P6EXT={ m4d:renderM4d, mp:renderMp, bim:renderBim, pva:renderPva, scx:renderScx, kpi:renderKpi, map:renderMap,
   _t:{ getPrep, buildPrep, curves, resolveW, pvaRows, kpiCompute, wbsInfo, EXT, TL, bounds, VIEW,
-       buildMapping, buildGeometry, parseLevel, autoRole, compileRules, matchTrade, getRules, DEFAULT_RULES, frameState, elemProg, actArrays, builtProgAt, planProgAt, focus3D, getLayout, layoutScale, splitZones, detectLayout, dxfToPlan, pdfExtract, mergeRuns, addCombos, findScale, regionFoot, minRect, scoreLabel, idOf, nameKey, floorsFrom } };
-const HELP_EXT=`<h4>🧊 4D Model</h4><p>Works like Synchro 4D with everything extracted from the schedule: the WBS gives the buildings / zones and floors, each activity name gives the element type, and <b>every linked activity becomes its own 3D object</b> that follows the appearance profile of its type (Install, Remove, Temporary, Maintain). The task list is linked both ways with the 3D view. Modes: As Planned, As Built / Actual, Split and Variance.</p><h4>🗺 Masterplan</h4><p>Load the site masterplan and each building / zone is positioned automatically: its label on the drawing is matched to the WBS name or code (legend tables are ignored, leader lines are followed), the outline around the label gives the exact position, size and orientation, “G+n” notes give the floor count and zone labels give the work-front direction. DXF is exact (real coordinates and units); PDF from CAD reads the scale from the title block; images use OCR and need the scale set once. Every result is rated High / Medium / Low so only doubtful ones need a look.</p>
+       buildMapping, buildGeometry, parseLevel, autoRole, compileRules, matchTrade, getRules, DEFAULT_RULES, frameState, elemProg, actArrays, ifcRead, ifcLink, buildIfcGeometry, BIM, builtProgAt, planProgAt, focus3D, getLayout, layoutScale, splitZones, detectLayout, dxfToPlan, pdfExtract, mergeRuns, addCombos, findScale, regionFoot, minRect, scoreLabel, idOf, nameKey, floorsFrom } };
+const HELP_EXT=`<h4>🏗 BIM (IFC)</h4><p>Load the IFC exported from Revit (File → Export → IFC). The 4D then uses the real Revit geometry, storeys and positions. Elements link to activities exactly through a parameter holding the P6 Activity ID (e.g. 4D_Activity_ID), otherwise automatically by building → storey → element class, split between activities by a Zone parameter or along the building in planned-start order. The BIM tab lists every link and every gap.</p><h4>🧊 4D Model</h4><p>Works like Synchro 4D with everything extracted from the schedule: the WBS gives the buildings / zones and floors, each activity name gives the element type, and <b>every linked activity becomes its own 3D object</b> that follows the appearance profile of its type (Install, Remove, Temporary, Maintain). The task list is linked both ways with the 3D view. Modes: As Planned, As Built / Actual, Split and Variance.</p><h4>🗺 Masterplan</h4><p>Load the site masterplan and each building / zone is positioned automatically: its label on the drawing is matched to the WBS name or code (legend tables are ignored, leader lines are followed), the outline around the label gives the exact position, size and orientation, “G+n” notes give the floor count and zone labels give the work-front direction. DXF is exact (real coordinates and units); PDF from CAD reads the scale from the title block; images use OCR and need the scale set once. Every result is rated High / Medium / Low so only doubtful ones need a look.</p>
 <h4>Mapping</h4><p>Controls how activities become 3D elements: WBS roles (building / floor / non-physical) with manual overrides, floors and footprint per building, and editable keyword rules (English &amp; Arabic). Activities that are not represented are listed with the reason. Settings are saved in this browser.</p>
 <h4>Plan vs Actual</h4><p>Planned (target dates, or Schedule A as a baseline matched by task_code) against actual / forecast, with variances and an Ahead / On track / Late flag. Click a row to focus its element in the 4D model.</p>
 <h4>S-Curve</h4><p>Planned, actual and forecast cumulative curves with automatic weighting fallback. It shares the 4D timeline: the marker follows the model date, and clicking or dragging on the chart moves the model.</p>
